@@ -13,12 +13,14 @@ landsea.srv
 tas.srv
 - 2m air temperature
 - Kelvin
+- 
 rlns.srv
-- net longwave radiation at the surface
 - W/m^2
+- 
 rsds.srv
-- W/m^2
 - downward shortwave radiation at the surface
+- W/m^2
+
 pr.srv
 - daily total precipitation
 - kg/m^2/s
