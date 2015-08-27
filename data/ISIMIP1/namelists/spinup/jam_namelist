@@ -1,0 +1,16 @@
+&jampar
+kCO2_dyn=0,
+kConcClim=0,
+kOutput=0,
+kRandYear=0,
+pDeltaT=0.0,
+pDeltaP=0.0,
+pTEMP_init=300.0,
+fRADs_as_init=380.0,
+fRADl_as_init=40.0,
+fH2Ol_as_init=20.0e-07,
+cH2Og_a_init=0.7,
+xCO2g_a_init=374.2,
+&end
+&jamvom
+&end

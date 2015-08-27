@@ -1,0 +1,10 @@
+# example of how to run a parameter sensitivity analysis
+BUILD=testcbal
+
+for kCbal in "0" "1"; do
+for pA0 in "0.5" "1.0" "2.0"; do
+for kGermFix in "0" "1"; do
+./runjedi testrun.cfg kCbal=$kCbal pA0=$pA0 kGermFix=$kGermFix EXP=${kCbal}_${pA0}_${kGermFix} kglobe_lastyear=50 BUILD=$BUILD
+done
+done
+done 

@@ -1,0 +1,6 @@
+build/
+experiments/
+*.DS_Store
+*.log
+source/version.f90
+.nfs*

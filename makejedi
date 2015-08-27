@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+source tools/shml.sh
+
+###############################################################################
+# makejedi
+# Copyright (c) 2015 Ryan Pavlick
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+display_usage () {
+###############################################################################
+echo "usage: ./makejedi [options]"
+echo
+echo "$(i 2)options:"
+echo "$(i 4)--build  <buildname>  - provide a name for this build (default is git commit SHA-1)"
+echo "$(i 4)--compiler <ifort,pgf90,gcc>  - choose compiler (default is ifort) "
+echo "$(i 4)--fast   - compile with optimizations"
+echo "$(i 4)--debug  - compile with debug options"
+    # echo "--trapfp    - trap floating point exceptions (requires debug)"
+    # echo "--uflow     - trap floating point underflow exceptions (requires debug)"
+echo "$(i 4)--nompi  - compile without MPI libraries for single processor"
+echo "$(i 4)--clean  - removes old compile files"
+echo "$(i 4)--netcdf - compile with netcdf libraries"
+echo
+echo "makejedi version:$(git describe --dirty --long --always --all)"
+echo "Copyright $(icon copyright) 2014-2015 Ryan Pavlick"
+echo "This is free software and comes with ABSOLUTELY NO WARRANTY"
+echo "For more information, see: https://github.com/rpavlick/JeDi"
+}
+###############################################################################
+
+###############################################################################
+cleanup () {
+###############################################################################
+### saves $LOGFILE on exit
+###############################################################################
+
+  LOGFILE=${PWD}/makejedi_${BUILD}.log
+  echo "$(br)saving the output of this script...$(br)${LOGFILE}"
+  mv ${TMPLOG} ${LOGFILE}
+  sed -i "s,\x1B\[[0-9;]*[a-zA-Z],,g" ${LOGFILE}
+}
+###############################################################################
+
+###############################################################################
+### Main Program
+###############################################################################
+cmdopts=($@)
+
+### check for command line arguments
+while [ "$1" != "" ]; do
+    case $1 in
+
+    -h|--help)
+    display_usage
+    exit
+    ;;
+
+    --compiler)
+    shift
+    COMPILER="$1"
+    ;;
+
+    # --trapfp)
+    # TRAPFP=1; DEBUG=1
+    # echo "Trapping of floating point exceptions enabled; requires --debug"
+    # shift
+    # ;;
+    #
+    # --uflow)
+    # UFLOW=1; DEBUG=1
+    # echo "Trapping of floating point underflow exceptions enabled; requires --debug"
+    # shift
+    # ;;
+
+    --debug)
+    DEBUG=1
+echo "Debug compiler options enabled"
+    ;;
+
+    --nompi)
+    MPI=0
+echo "MPI libraries disabled"
+    ;;
+
+    --netcdf)
+    NETCDF=1
+echo "NetCDF libraries enabled"
+    ;;
+
+    --fast)
+    FAST=1
+echo "Fast compiler optimizations enabled"
+    ;;
+
+    --clean)
+    CLEAN=1
+    ;;
+
+    --build)
+    shift
+    BUILD="$1"
+    ;;
+
+    *)
+echo "Error: unknown command line option $1"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+### log script out to temporary file to save on exit
+TMPLOG=$(mktemp /tmp/makejedi.XXXXX)
+exec > >(tee "$TMPLOG")
+exec 2>&1
+trap 'cleanup' EXIT
+
+### output some information about this make script
+THIS_SCRIPT=$0
+echo "$(br)$(hr '*')"
+echo "$( cd "$( dirname "${THIS_SCRIPT}" )" && pwd )/$(basename ${THIS_SCRIPT}) ${cmdopts[*]}"
+echo "$(hr)"
+echo "git revision: $(git describe --dirty --long --always --all)"
+echo "host: $(uname -n): $(uname -s) $(uname -r) $(uname -m) $(uname -p)"
+echo "date: $(date)"
+echo "$(hr '*')"
+
+### give warning if git repository is dirty
+### it is easier to reproduce to results with known commit
+if [ "$(git status --porcelain)x" != "x" ]; then
+  echo "$(bg yellow)$(c white) "WARNING: Git repository is dirty!" $(c end)$(bg end)"
+fi
+
+### set some defaults
+MPI=1     ### Message Passing Interface libraries used by default
+REAL8=1   ### 8 byte representation of REALS used by default
+
+if [ "x${COMPILER}" == "x" ]; then COMPILER="ifort"; fi
+echo "COMPILER=${COMPILER}"
+
+### create build directory and copy over source files
+if [ "x${BUILD}" == "x" ]; then
+BUILD=$(git describe --always --dirty)
+fi
+BUILD_DIR="${PWD}/build/${BUILD}"
+MODULES_FILE="${BUILD_DIR}/modules"
+echo "BUILD=${BUILD}"
+echo "BUILD_DIR=${BUILD_DIR}"
+mkdir -p ${BUILD_DIR}
+echo "MODULES_FILE=${MODULES_FILE}"
+# save git diff file to build directory
+GITDIFF_FILE="${BUILD_DIR}/${BUILD}.diff"
+echo "Saving git diff to ${GITDIFF_FILE}"; echo
+git diff > $GITDIFF_FILE
+
+### remove old compile files from build directory
+if [ "$CLEAN" == "1" ]; then
+ echo "Cleaning old build files"
+ rm -r ${BUILD_DIR:?}/*; echo
+fi
+
+### copy over source files to build dir
+SOURCE_DIR="source"
+echo "Copying source files to build directory"
+cp -rp ${SOURCE_DIR}/* ${BUILD_DIR}
+cd ${BUILD_DIR}
+
+ ### set up compiler specific options
+case "$COMPILER" in
+  #############################################
+  pgf90|pgi|portland) ### Portland Group Fortran compiler options
+  #############################################
+  COMPILER_NAME="Portland Group Fortran"
+  FC=pgf90
+
+  MPI_FC="pgf90"
+  MPIOPT="-D__MPI -I/opt/sys/mvapich2/1.5.1p1/pgi/include -L/opt/sys/mvapich2/1.5.1p1/pgi/lib -lmpichf90 -lfmpich -lmpe -lmpich -lopa -lpthread -lrdmacm -libverbs -libumad -ldl -lrt"
+
+  if [ "$REAL8" == "1" ]; then
+    REAL8OPT="-r8"
+  fi
+
+  VOPT="-V"
+
+#  if [ "$NETCDF" == "1" ]; then
+#    HDF_PATH="/usr"
+#    NETCDF_PATH="/usr/local/apps/pgi"
+#    NETCDFOPT="-D__NETCDF"
+#    LIBNETCDF="-L${NETCDF_PATH}/lib -lnetcdff -lnetcdf \
+#    -L${HDF_PATH}/lib64 -lhdf5_hl -lhdf5 -lz"
+#    INCNETCDF="-I${HDF_PATH}/include -I${NETCDF_PATH}/include"
+#  fi
+
+  FOPTS_DEF=
+  if [ "$FAST" == "1" ]; then
+    FOPTS="${FOPTS_DEF} -fastsse"
+  else
+    FOPTS="${FOPTS_DEF}"
+  fi
+
+# preprocess options
+  FPPOPT="-Mpreprocess"
+
+cat >${BUILD_DIR}/modules <<EOF
+  module load compilers/pgi-12.8_64  mpi-mvapich2/pgi-1.5.1p1_64
+EOF
+  ;;
+
+  #############################################
+  ifort|intel) ### Intel Fortran compiler options
+  #############################################
+  COMPILER_NAME="Intel Fortran"
+  FC=ifort
+
+  MPI_FC="mpif90"
+  MPIOPT="-D__MPI"
+
+  if [ "$REAL8" == "1" ]; then
+    REAL8OPT="-real-size 64"
+  fi
+
+  VOPT="-v"
+
+   if [ "$NETCDF" == "1" ]; then
+     HDF_PATH="/opt/sys/hdf5/1.8.5/intel"
+     NETCDF_PATH="/opt/sys/netcdf/4.1.1/intel"
+     NETCDFOPT="-D__NETCDF"
+     LIBNETCDF="-L${NETCDF_PATH}/lib -lnetcdff -lnetcdf -L${HDF_PATH}/lib -lhdf5_hl -lhdf5 -lz"
+     INCNETCDF="-I${HDF_PATH}/include -I${NETCDF_PATH}/include"
+   fi
+
+  FOPTS_DEF="-assume byterecl -vec-report0 "
+  if [ "$FAST" == "1" ]; then
+    FOPTS="${FOPTS_DEF} -O3 -no-prec-div -xHost -ipo"
+    echo "Compiler optimization flags enabled: -ipo -O3 -no-prec-div -xHost"
+  else
+    FOPTS="${FOPTS_DEF} -fp-model source"
+  fi
+
+  if [ "$DEBUG" == "1" ]; then
+    DEBUGOPT="-D__DEBUG -D__NONAN"
+    FOPTS="${FOPTS_DEF} -g -d-lines -check -debug -debug-parameters -fpe0 -traceback"
+  fi
+
+  LIBMATH="-limf -lm"
+  FPPOPT="-fpp -allow nofpp_comments -free"
+  CMP_OPT="-D__IFORT"
+
+echo "Saving modules files to ${MODULES_FILE}"
+cat >${MODULES_FILE} <<EOF
+module load compilers/intel-13.1.3_64
+module load netcdf/intel-4.1.1
+module load mpi-mvapich2/intel-1.5.1p1_64
+module load hdf5/intel-1.8.5
+module load misc-intel/zlib-1.2.6
+module load misc-intel/szip-2.1
+EOF
+  ;;
+
+  #############################################
+  gnu|gcc|gfortran) ### GNU Fortran compiler options
+  #############################################
+  COMPILER_NAME="GNU Fortran"
+  FC="gfortran"
+
+  MPI_FC="mpif90"
+  MPIOPT="-D__MPI"
+  FOPTS="-ffree-line-length-none"
+
+  REAL8OPT="-fdefault-real-8"
+
+  FPPOPT="-cpp -ffree-line-length-none -fdollar-ok"
+  CMP_OPT="-D__GCC"
+  VOPT="-v"
+echo "Saving modules files to ${MODULES_FILE}"
+cat >${MODULES_FILE} <<EOF
+module load compilers/gcc-4.3-62_64 mpi-mvapich2/gcc-1.5.1p1_64
+EOF
+   ;;
+
+  #############################################
+  *) ### unknown compiler option
+  #############################################
+  echo "Error: unknown --compiler option: $COMPILER"
+  exit 1
+  ;;
+esac
+
+# load modules necessary to build jedi
+source /usr/share/modules/init/bash
+module purge
+source ${MODULES_FILE}
+module list; echo
+
+FC_PATH=$(which $FC)
+if [ "x${FC_PATH}" == "x" ]; then
+  echo "$(bg red)$(c white)Error: ${COMPILER_NAME} compiler not found$(bg end)$(c end)"
+  exit 0
+else
+  echo "$COMPILER_NAME compiler found at $FC_PATH"
+  ${FC} ${VOPT};  echo ""
+fi
+
+if [ "$MPI" == "1" ]; then
+  FC=${MPI_FC}
+  FC_PATH=$(which $FC)
+  if [ "x${FC_PATH}" == "x" ]; then
+    echo "$(bg red)$(c white)Error: MPI Fortran compiler ${FC} not found$(bg end)$(c end)"
+  else
+    echo "MPI Fortran compiler found at $FC_PATH"
+    ${FC} ${VOPT};  echo ""
+  fi
+else
+  MPIOPT=""
+fi
+
+cat > ${BUILD_DIR}/make.inc <<EOF
+FC=${FC}
+MPIOPT=${MPIOPT}
+DEBUGOPT=${DEBUGOPT}
+NETCDFOPT=${NETCDFOPT}
+REAL8OPT=${REAL8OPT}
+VOPT=${VOPT}
+CMP_OPT=${CMP_OPT}
+FPPOPT=${FPPOPT}
+FOPTS=${FOPTS}
+LIBNETCDF=${LIBNETCDF}
+INCNETCDF=${INCNETCDF}
+ZLIB_PATH=${ZLIB_PATH}
+SLIB_PATH=${SLIB_PATH}
+LIBMATH=${LIBMATH}
+EOF
+
+make -e
+
+if [ $? -eq 0 ]; then
+  echo "$(br)Success! $(icon smile)$(br)jedi.x is now in $PWD"
+else
+  echo "$(br)Something went wrong! $(c red)$(icon xmark)$(c end)"
+fi
+
+
+# cat > f90check.f90 <<EOF
+#   program f90check
+#   integer :: i = 258
+#   real    :: r = 1.0
+#   open(21,file='F90_INTEGER',form='unformatted')
+#   write (21) i
+#   close(21)
+#   open(21,file='F90_REAL',form='unformatted')
+#   write (21) r
+#   close(21)
+#   end
+# EOF
+#
+# cat > mpif90check.f90 <<EOF
+#   program mpicheck
+#   integer :: mpinfo  = 0
+#   call mpi_init(mpinfo)
+#   call mpi_finalize(mpinfo)
+#   end
+# EOF

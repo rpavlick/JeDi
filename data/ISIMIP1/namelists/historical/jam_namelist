@@ -1,0 +1,9 @@
+&jampar
+kCO2_dyn=2,
+kOutput=0,
+kRandYear=0,
+pDeltaT=0.0,
+pDeltaP=0.0,
+&end
+&jamvom
+&end

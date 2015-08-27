@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# wrapper script for dot to produce pdf output
+mk_pdf=0
+opt_out=0
+file_out=""
+options=""
+for opt in $@; do
+  skip=0;
+  if [ "$opt" = "-Tpdf" ]; then mk_pdf=1; skip=1; fi
+  if [ $opt_out = 2 ]; then file_out=$opt; opt_out=1; skip=1; fi
+  if [ "$opt" = "-o" ]; then opt_out=2; skip=1; fi
+  if [ $skip = 0 ]; then options="$options $opt"; fi
+done
+if [ $mk_pdf = 1 ] && [ $opt_out = 1 ]; then
+  dot $options -Teps | \
+  ps2pdf13 -dEPSCrop -dAutoRotatePages=/None -dAutoFilterColorImages=false -dColorImageFilter=/FlateEncode -dUseFlateCompression=true - $file_out.tmp
+  awk '{
+    ii = index($0,"MediaBox");
+    if (ii != 0) {
+      i1 = index($0,"[");
+      i2 = index($0,"]");
+      print substr($0,1,ii-2);
+      print "   /MediaBox [ " substr($0,i1+1,i2-i1-1) " ]"
+    } else {
+      print
+    }
+  }' $file_out.tmp >$file_out
+  rm $file_out.tmp
+else
+  dot $@
+fi

@@ -1,0 +1,292 @@
+#!/bin/bash
+
+# Use: ./doxygen [stdout] [useman] [>doxygen.out] [2>doxygen.err|2>&1]
+# stdout - write Doxygen output to stdout
+# useman - create users manual only
+
+# clean up
+rm -f -r latex/ html/ header.tex doxygen.sty
+rm -f -r use_man_latex/ use_man_html/
+rm -f ../docs/use_man.pdf ../docs/use_man.html
+
+# create a special version of the Doxyfile for the Users Manual
+awk 'BEGIN{skip = 0}{
+  done = 0
+  if (skip == 1) {done = 1; if ($2 == "") skip = 0}
+  if ($1 == "STRIP_FROM_PATH") {print $0 "docs/"; done = 1}
+  if ($1 == "INPUT") {
+    i = index($0,"=")
+    print substr($0,1,i+1) "../docs"
+    done = 1
+    if ($4 == "\\") skip = 1
+  }
+  if ($1 == "EXCLUDE") {
+    i = index($0,"=")
+    print substr($0,1,i+1) "../docs/ref_man.F90"
+    done = 1
+    if ($4 == "\\") skip = 1
+  }
+  if ($1 == "HAVE_DOT" || $1 == "SHOW_DIRECTORIES" || $1 == "SHOW_FILES" || $1 == "SOURCE_BROWSER") {
+    i = index($0,"=")
+    print substr($0,1,i+1) "NO"
+    done = 1
+  }
+  if (done == 0) print
+}' Doxyfile >Doxyfile_use_man
+
+# write out the LaTeX header and style
+cat Doxyfile_use_man | grep -v LATEX_HEADER >Doxyfile.tmp
+doxygen -w latex header.tex doxygen0.sty Doxyfile.tmp >/dev/null
+rm -f Doxyfile.tmp
+
+# modify the LaTeX header to include our start page
+awk 'BEGIN{o=1}{
+  if (o == 1) print
+  if (substr($0,8,9) == "titlepage") o=0
+}' header.tex >header1.tex
+awk 'BEGIN{o=0}{
+  if (substr($0,6,9) == "titlepage") o=1
+  if (o == 1) print
+}' header.tex >header2.tex
+cat header1.tex ../docs/use_man_title.tex header2.tex >header.tex
+rm -f header1.tex header2.tex
+
+# modify the LaTeX style to fix the table border color
+cat doxygen0.sty | \
+awk 'BEGIN{m=0}{
+  if (index($0,"DoxyParams") != 0) m = 1
+  if (m > 0) {
+    gsub("gray","white")
+    i1 = index($0,"definecolor")
+    i2 = index($0,"rowcolors")
+    if (i1 == 0 && i2 == 0) print
+    im = index($0,"ifthenelse")
+    if (im != 0) m = 0
+  } else {print}
+}' >doxygen.sty
+
+# modify the LaTeX style to fix parameter table size
+cat doxygen.sty | \
+awk 'BEGIN{m=0}{
+  if (index($0,"DoxyParams") != 0) m = 1
+  if (m > 0) {
+    gsub("0.15","0.23")
+    gsub("0.87","0.73")
+    im = index($0,"ifthenelse")
+    if (im != 0 && m == 2) m = 0
+    if (im != 0 && m == 1) m = 2
+  }
+  print
+}' >doxygen0.sty
+
+# modify the LaTeX style to remove the title from the parameter sections
+cat doxygen0.sty | \
+awk 'BEGIN{m=0}{
+  skip = 0
+  if (index($0,"DoxyParams") != 0) m = 1
+  if (index($0,"DoxyDesc") != 0 && m == 2) {m = 0; skip = 1}
+  if (index($0,"DoxyDesc") != 0 && m == 1) {m = 2; skip = 1}
+  if (skip == 0) print
+}' >doxygen.sty
+
+# modify the LaTeX style to fix the small subsubsection font
+cat doxygen.sty | \
+awk '{
+  if (index($0,"{\\paragraph}") != 0) {
+    print "\\renewcommand{\\subsubsection}{\\@startsection{subsubsection}{4}{0ex}%"
+    print "   {-3.25ex plus -1ex minus -0.2ex}%"
+    print "   {1.5ex plus 0.2ex}%"
+    print "   {\\normalfont\\normalsize\\bfseries}}"
+  }
+  print
+}' >doxygen0.sty
+mv doxygen0.sty doxygen.sty
+
+# run Doxygen
+if [ "$1" = "stdout" ] || [ "$2" = "stdout" ]; then
+  doxygen Doxyfile_use_man
+else
+  doxygen Doxyfile_use_man >doxy.out 2>doxy.err
+fi
+
+# copy the LaTeX style to the latex folder
+cd latex
+mv -f ../doxygen.sty .
+
+# modify refman.tex to remove the empty section "Main Page"
+mv refman.tex refman0.tex
+awk '{
+  if (index($0,"Main Page") == 0) print
+}' refman0.tex >refman.tex
+rm -f refman0.tex
+
+# compile with LaTeX to create the PDF-file
+make
+cd ..
+
+# rename the dirs to prevent overwrite by the creation of the ref_man
+mv latex use_man_latex
+mv html use_man_html
+
+# clean up
+rm -f header.tex doxygen.sty Doxyfile_use_man
+
+# create links to the documentations
+ln -s ../doxygen/use_man_latex/refman.pdf ../docs/use_man.pdf
+echo "<html><head><title>Jena-GLOBE Users Manual</title></head>" >../docs/use_man.html
+echo "<frameset><frame src="../doxygen/use_man_html/index.html"></frameset></html>" >>../docs/use_man.html
+
+if [ "$1" = "useman" ] || [ "$2" = "useman" ]; then
+  exit
+fi
+
+# clean up
+rm -f -r latex/ html/ header.tex doxygen.sty
+rm -f -r ref_man_latex/ ref_man_html/
+rm -f ../docs/ref_man.pdf ../docs/ref_man.html
+
+# write out the LaTeX header and style
+cat Doxyfile | grep -v LATEX_HEADER >Doxyfile.tmp
+doxygen -w latex header.tex doxygen.sty Doxyfile.tmp >/dev/null
+rm -f Doxyfile.tmp
+
+# modify the LaTeX header to include our start page
+awk 'BEGIN{o=1}{
+  if (o == 1) print
+  if (substr($0,8,9) == "titlepage") o=0
+}' header.tex >header1.tex
+awk 'BEGIN{o=0}{
+  if (substr($0,6,9) == "titlepage") o=1
+  if (o == 1) print
+}' header.tex >header2.tex
+cat header1.tex ../docs/ref_man_title.tex header2.tex >header0.tex
+
+# modify the LaTeX header to fix the underscore problem
+awk '{
+  if (substr($0,8,8) == "document") print "\\newcommand°{\\textunderscore}"
+  print
+}' header0.tex >header.tex
+rm -f header0.tex header1.tex header2.tex
+
+# modify the LaTeX style to fix the table border color
+cat doxygen.sty | \
+awk 'BEGIN{m=0}{
+  if (index($0,"DoxyParams") != 0) m = 1
+  if (m > 0) {
+    gsub("gray","white")
+    i1 = index($0,"definecolor")
+    i2 = index($0,"rowcolors")
+    if (i1 == 0 && i2 == 0) print
+    im = index($0,"ifthenelse")
+    if (im != 0) m = 0
+  } else {print}
+}' >doxygen0.sty
+
+# modify the LaTeX style to fix parameter table size
+cat doxygen0.sty | \
+awk 'BEGIN{m=0}{
+  if (index($0,"DoxyParams") != 0) m = 1
+  if (m > 0) {
+    gsub("0.15","0.18")
+    gsub("0.87","0.78")
+    im = index($0,"ifthenelse")
+    if (im != 0 && m == 2) m = 0
+    if (im != 0 && m == 1) m = 2
+  }
+  print
+}' >doxygen.sty
+
+# modify the LaTeX style to fix parameter display
+cat doxygen.sty | \
+awk 'BEGIN{m=0}{
+  if (index($0,"DoxyParamCaption") != 0) m = 1
+  if (m > 0) {
+    gsub("##1","\\\\ \\phantom{subroutine} ##1")
+    if ($0 == "}") m = 0
+  }
+  print
+}' >doxygen0.sty
+
+# modify the LaTeX style to fix the small subsubsection font
+cat doxygen0.sty | \
+awk '{
+  if (index($0,"{\\paragraph}") != 0) {
+    print "\\renewcommand{\\subsubsection}{\\@startsection{subsubsection}{4}{0ex}%"
+    print "   {-3.25ex plus -1ex minus -0.2ex}%"
+    print "   {1.5ex plus 0.2ex}%"
+    print "   {\\normalfont\\normalsize\\bfseries}}"
+  }
+  print
+}' >doxygen.sty
+rm -f doxygen0.sty
+
+# run Doxygen
+if [ "$1" = "stdout" ]; then
+  doxygen Doxyfile
+else
+  doxygen Doxyfile >>doxy.out 2>>doxy.err
+fi
+
+# remove all the MD5 files created by dot
+rm -f html/*.md5 latex/*.md5
+
+# remove unwanted dir-icons
+for file in latex/dir_*.tex html/dir_*.html; do
+  mv $file $file.tmp
+  awk 'BEGIN{p=1}{
+    if ($1 == "Directory" && $2 == "dependency") p=0
+    if (p == 1) print
+    if (substr($0,6,6) == "figure") p=1
+    if ($1 == "</div>") p=1
+  }' $file.tmp >$file
+  rm -f $file.tmp
+done
+
+# remove in a*.tex the lines with death links
+for file in latex/a*.tex; do
+  mv $file $file.tmp
+  awk '{
+    if ($1 != "Definition" || $2 != "in" || $3 != "file") print
+  }' $file.tmp >$file
+  rm -f $file.tmp
+done
+
+# copy the LaTeX style to the latex folder
+cd latex
+mv -f ../doxygen.sty .
+
+# modify refman.tex to remove the empty section "Main Page"
+mv refman.tex refman0.tex
+awk '{
+  if (index($0,"Main Page") == 0) print
+}' refman0.tex >refman.tex
+rm -f refman0.tex
+
+# replace underscores to prevent unwanted line breaks in parameter tables
+for file in *.tex; do
+  mv $file awk.temp
+  awk 'BEGIN{m=0}{
+    if (index($0,"NAME")!=0) m=1
+    if (substr($0,8,10)=="DoxyParams") m=1
+    if (substr($0,6,10)=="DoxyParams") m=0
+    if (m==1) gsub("\\\\_\\\\-","°")
+    if (m==1) gsub("INCLUDE°IOSTAT","INCLUDE\\_\\-IOSTAT")
+    print
+  }' awk.temp >$file
+done
+rm -f awk.temp
+
+# compile with LaTeX to create the PDF-file
+echo "Ignore error messages of: PDF file is damaged" >&2
+make
+cd ..
+mv latex ref_man_latex
+mv html ref_man_html
+
+# clean up
+rm -f header.tex Doxyfile_use_man
+
+# create links to the documentations
+ln -s ../doxygen/ref_man_latex/refman.pdf ../docs/ref_man.pdf
+echo "<html><head><title>Jena-GLOBE Reference Manual</title></head>" >../docs/ref_man.html
+echo "<frameset><frame src="../doxygen/ref_man_html/index.html"></frameset></html>" >>../docs/ref_man.html

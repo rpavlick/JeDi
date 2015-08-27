@@ -1,0 +1,16 @@
+&globepar
+kglobe_firstyear=1,
+kglobe_lastyear=100,
+kglobe_yrsout=20,
+kglobe_yrsskip=90,
+kglobe_restart=0,
+kglobe_diag=1,
+kglobe_gui=0,
+kglobe_loop=0,
+kglobe_mapoutput=1,
+kglobe_netcdf=0,
+&end
+&globespt
+&end
+&globeskip
+&end

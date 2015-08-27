@@ -1,0 +1,76 @@
+5370 RICH               Functional Richness [growth strategies]
+5371 EVEN               Evenness [no units]
+5300 GPP                Gross Primary Productivity [gC/m^2/day]
+5301 NPP                Net Primary productivity [gC/m^2/day]
+5302 NEE                Net Ecosystem Exchange  [gC/m^2/day]
+5304 BM                 Biomass  [gC/m^2]
+5308 FLIT               Litter flux [gC/m^2/day]
+5310 AR                 Autotrophic Respiration [gC/m^2/day]
+5311 SOILC_HR           Soil Respiration [gC/m^2/day]
+5312 ER                 Ecosystem Respiration [gC/m^2/day]
+5199 LEAFN              Leaf Nitrogen [gN/gC]
+5200 TLAI               Leaf area index [m^2/m^2]
+
+5174 SLA                Specific Leaf Area [m^2/gC]
+5229 BUCKET             Bucket depth [mm]
+5182 ET                 Evapotranspiration [mm/day]
+5140 MOIST              Soil moisture [mm]
+5379 RAIN               Precipitation [mm/day]
+5382 FSDS               Incident Solar Radiation [W/m^2]
+5381 FSH                Sensible Heat [W/m^2]
+5380 LATENT             Latent Heat [W/m^2]
+5383 NETRAD             Net Radiation [W/m^2]
+
+5182 ET                 Evapotranspiration [mm/day]
+5186 TRANS              Transpiration [mm/day]
+5183 ESOIL              Bare soil evaporation [mm/day]
+5184 LEVAP              Canopy Evaporation [mm/day]
+5187 QTOT               Total runoff [mm/day]
+5185 QSURF              Surface runoff [mm/day]
+
+5372 SEEDC              Seed carbon pool [gC/m^2]
+5373 ASSMC              Storage carbon pool [gC/m^2]
+5374 LEAFC              Leaf carbon pool [gC/m^2]
+5375 FROOTC             Fine root carbon pool [gC/m^2]
+5376 STEMC              Woody stem carbon pool  [gC/m^2]
+5377 ROOTC              Woody root carbon pool [gC/m^2]
+
+5600 SOILC             Soil carbon  [gC/m^2]
+5601 LEAF_LITTERC      Leaf litter carbon  [gC/m^2]
+5602 FROOT_LITTERC     Fine root litter carbon  [gC/m^2]
+5603 CWDC              Coarse woody debris carbon   [gC/m^2]
+5604 ROOT_LITTERC      Woody root litter carbon  [gC/m^2]
+
+5630 SOILC_LOSS             Soil carbon loss [gC/m^2/day]
+5631 LEAF_LITTERC_LOSS      Leaf litter carbon loss [gC/m^2/day]
+5632 FROOT_LITTERC_LOSS     Fine root litter carbon loss [gC/m^2/day]
+5633 CWDC_LOSS              Coarse woody debris carbon loss  [gC/m^2/day]
+5634 ROOT_LITTERC_LOSS      Woody root litter carbon loss [gC/m^2/day]
+5635 SEEDC_LOSS             Seed carbon loss [gC/m^2/day]
+
+5621 LEAFC_ALLOC        Leaf carbon allocation [gC/m^2/day]
+5622 FROOTC_ALLOC       Fine root carbon allocation [gC/m^2/day]
+5623 STEMC_ALLOC        Woody stem carbon allocation  [gC/m^2/day]
+5624 ROOTC_ALLOC        Woody root carbon allocation [gC/m^2/day]
+5625 SEEDC_ALLOC        Seed carbon allocation [gC/m^2/day]
+
+5611 LEAFC_LOSS         Leaf carbon loss [gC/m^2/day]
+5612 FROOTC_LOSS        Fine root carbon loss [gC/m^2/day]
+5613 STEMC_LOSS         Woody stem carbon loss  [gC/m^2/day]
+5614 ROOTC_LOSS         Woody root carbon loss [gC/m^2/day]
+5616 ASSMC_LOSS         Assimilate carbon loss [gC/m^2/day]
+
+5400 c5400              Vegetated Area
+5401 c5401              number of Extinct species
+5402 c5402              net flux of seed migration
+5403 c5403              outgoing seed flux by migration
+5404 c5404              incoming seed flux by migration
+5405 c5405              number of speciations
+5410 c5410              area gained by Germination
+5411 c5411              area gained by colonization
+5412 c5412              area lost by exclusion
+5413 c5413              area lost by mortality
+5414 c5414              area lost by disturbances
+5415 c5415              area lost by extinction
+5416 c5416              area gained by migration
+5417 c5417              area gained by speciations

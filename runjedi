@@ -1,0 +1,821 @@
+#!/usr/bin/env bash
+source tools/shml.sh
+
+#SET="set -euo pipefail +x"; $SET
+###############################################################################
+# runjedi
+# Copyright (c) 2015 Ryan Pavlick
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+display_usage () {
+###############################################################################
+echo "Usage: ./runjedi <configuration file> [ parameter1=value parameter2=value ... ]"
+echo
+echo "runjedi version:$(git describe --dirty --long --always --all)"
+echo "Copyright $(icon copyright) 2014-2015 Ryan Pavlick"
+echo "This is free software and comes with ABSOLUTELY NO WARRANTY"
+echo "For more information, see: https://github.com/rpavlick/JeDi"
+}
+###############################################################################
+
+###############################################################################
+define_variables () {
+###############################################################################
+### defines filenames, directories, script options variables
+###############################################################################
+
+# experiment name
+EXP=
+
+### model executable directory
+BUILD=""
+
+### climate forcing directory
+FORCING_DIR=""
+
+### namelist directory
+NAMELIST_DIR=""
+
+### surface description directory
+SURFACE_DIR=""
+
+### species parameter file
+SPECPARM_FILE=""
+
+### atmospheric CO2 file
+PCO2_FILE=""
+
+### jedi parameter table file
+PARTAB_FILE=""
+
+### restart options
+RESTART=
+RESTART_DIR=""
+
+### maximum number of years to run per job, set to zero for infinite
+MAXJOBYEARS="0"
+
+### postprocess jedi output
+POST=1  # convert jedi output to netcdf and produce monthy, annual, and time averages
+NUMPOSTYEARS=10 # use only the last N years for averages, use 0 for all years
+COMPRESS=1 # compress netcdf output
+
+### PBS cluster options
+DEPEND=""
+NODES="1"
+NCPUS="12"
+QUEUE="mediumq"
+WALLTIME="12:00:00"
+DEPEND=""
+
+### define file names
+MODELX="jedi.x"
+FORCING_FILES=("tas.srv" "pr.srv" "rlns.srv" "rsds.srv")
+NAMELIST_FILES=("globe_namelist" "jam_namelist" "jedi_namelist")
+SURFACE_FILES=("latitude.srv" "longitude.srv" "paw.srv" "elevation.srv" "landsea.srv" "landsea.nc")
+RESTART_FILES=("globe_restart" "jedi_restart")
+DIAG_FILES=("globe_diag.txt" "jam_diag.txt" "jedi_diag.txt")
+OUTPUT_FILES=("jedi_output.srv" "jedi_success.txt" "jedi_gaspp.txt" "jedi_species.txt" "jedi_species.srv" "jam_output.srv");
+return;
+}
+###############################################################################
+
+
+###############################################################################
+write_expconfig_file () {
+###############################################################################
+### writes out experiment config file
+### usage: write_expconfig_file <filename>
+###############################################################################
+
+local CFGFILE
+CFGFILE=$1
+
+echo "$(br)saving experiment configuration file...$(br)${CFGFILE}"
+
+cat >${CFGFILE}<<EOF
+# experiment name
+EXP="${EXP}"
+
+### directory path to model executable
+BUILD="${BUILD}"
+
+### restart setting
+RESTART="${RESTART}"
+
+### directory containing restart files
+RESTART_DIR="${RESTART_DIR}"
+
+### daily meteorological forcing directory
+FORCING_DIR="${FORCING_DIR}"
+
+### namelist directory
+NAMELIST_DIR="${NAMELIST_DIR}"
+
+### directory containing surface description files
+SURFACE_DIR="${SURFACE_DIR}"
+
+### species parameter file
+SPECPARM_FILE="${SPECPARM_FILE}"
+
+### atmospheric CO2 concentration file
+PCO2_FILE="${PCO2_FILE}"
+
+### jedi parameter table file
+PARTAB_FILE="${PARTAB_FILE}"
+
+### pbs cluster options
+NODES=${NODES}
+NCPUS=${NCPUS}
+QUEUE=${QUEUE}
+WALLTIME=${WALLTIME}
+EOF
+
+return;
+}
+
+##############################################################################
+process_cmdline_opts () {
+###############################################################################
+### process command line modifications to set script variables
+###############################################################################
+
+local param
+local opt
+local val
+local index
+
+### not possible to easily pass an array to a bash function
+### therefore, the following line of code must be placed in the main program
+### before the call to this function
+#cmdline=("$@")
+
+
+### process command line options
+echo "$(br)processing command line modifications to configuration file..."
+
+numcmdline=${#cmdline[@]}
+if [ $numcmdline -gt 0 ]; then
+  index=0
+  for opt in "${cmdline[@]}"; do
+    ### decompose cmdline elements in to parameter and value
+    param=${opt%=*}
+    val=${opt#*=}
+
+    ### check that cmdline element is valid
+    ### parameter=value or "parameter=value"
+    if [ "$opt" ==  "${val}" ] || [ "x${param}" == "x" ]; then
+      error_exit "ERROR: \"$opt\" is not a valid command-line option."
+    fi
+
+    ### if param is a set variable, then apply new value and remove element from cmdline array
+    ### else move on to next cmdline element
+    set +e
+    if [ ! -z "${!param+x}" ]; then
+      echo "$(bg red)$(c white)< ${param}=${!param}$(c end)$(bg end)"
+      echo "$(bg green)$(c white)> ${param}=${val}$(c end)$(bg end)"
+      eval ${opt}
+      unset cmdline[$index]
+      cmdline=("${cmdline[@]}")
+    else
+      let index++
+    fi
+    ${SET}
+  done
+fi
+
+if [ ${numcmdline} -eq ${#cmdline[@]} ]; then
+  echo "...no command line modifications found"
+fi
+return;
+}
+##############################################################################
+
+###############################################################################
+create_exp_directory () {
+###############################################################################
+### create directory structure for new JeDi experiment
+###############################################################################
+
+if [ "x${EXP}" == "x" ]; then
+  # display_usage
+  error_exit "ERROR: Experiment name EXP not defined!";
+elif [ ${#EXP} -gt 10 ]; then
+  # EXP is limited to 10 characters
+  error_exit "ERROR: EXP can be no more than 10 characters!";
+fi
+
+echo "$(br)creating experiment directory..."
+
+BASE_DIR=${PWD}
+EXP_DIR="${BASE_DIR}/experiments/${EXP}"
+BUILD_DIR="${BASE_DIR}/build/${BUILD}"
+KILLSCRIPT="${EXP_DIR}/kill_${EXP}.sh"
+
+### give WARNING if experiment directory already exists
+if [ "$RESTART" == "0" ] && [ -d ${EXP_DIR} ]; then
+ echo "$(bg yellow)$(c white)WARNING: ${EXP_DIR} already exists$(c end)$(bg end)"
+else
+  mkdir -p ${EXP_DIR}
+  echo "${EXP_DIR}"
+fi
+
+cd ${EXP_DIR}
+return;
+}
+###############################################################################
+
+
+###############################################################################
+check_input_files () {
+###############################################################################
+### if input file does not exists, gives WARNING but not error
+###############################################################################
+
+local FILE
+
+echo "$(br)checking for input files..."
+
+for FILE in "${MODELX[@]/#/${BUILD_DIR}/}" \
+"${NAMELIST_FILES[@]/#/${NAMELIST_DIR}/}" \
+"${SURFACE_FILES[@]/#/${SURFACE_DIR}/}"\
+"${FORCING_FILES[@]/#/${FORCING_DIR}/}" \
+"${SPECPARM_FILE}" \
+"${PCO2_FILE}" \
+"${PARTAB_FILE}"; do
+  if [ -f ${FILE} ]; then
+    echo "$FILE...$(c green)$(icon check)"
+  else
+    echo "$(bg yellow)$(c white)WARNING: ${FILE} not found!$(c end)$(bg end)"
+  fi
+done
+
+return;
+}
+###############################################################################
+
+##############################################################################
+process_namelist_opts () {
+###############################################################################
+### process command line modifications to namelist files
+### must be called after process_cmdline_opts
+###############################################################################
+
+local param
+local opt
+local val
+local index
+local msg1
+local FILE
+
+echo "$(br)copy namelist files to experiment directory..."
+
+for FILE in "${NAMELIST_FILES[@]}"; do
+  if [ -f ${NAMELIST_DIR}/${FILE} ]; then
+    cp -av ${NAMELIST_DIR}/${FILE} ${EXP_DIR}/${FILE}
+  else
+    error_exit "ERROR: ${FILE} not found in NAMELIST_DIR!"
+  fi
+done
+
+if [ ${#cmdline[@]} -gt 0 ]; then
+
+  echo "$(br)processing command line modifications to namelist files..."
+  for opt in "${cmdline[@]}"; do
+    cmdline=("${cmdline[@]}")
+
+    ### decompose cmdline elements in to parameter and value
+    param=${opt%=*}
+    val=${opt#*=}
+
+    ### check that cmdline element is valid
+    ### parameter=value or "parameter=value"
+    if [ "$opt" ==  "${val}" ] || [ "x${param}" == "x" ]; then
+      error_exit "ERROR: \"$opt\" is not a valid command-line option"
+    fi
+
+    ## loop through namelists and replace parameter value if found
+    for nmlfile in "${NAMELIST_FILES[@]/#/${EXP_DIR}/}" "NOT_IN_NAMELISTS"; do
+      if [ "$(grep -s "${param}\s*=" ${nmlfile})"  ]; then
+        replace_namelist_value ${nmlfile} ${param} ${val}
+        break
+      fi
+     if [ "$nmlfile" == "NOT_IN_NAMELISTS" ]; then
+       echo "$(bg yellow)$(c white)WARNING: ${opt%=*} is not a script variable nor a namelist parameter$(c end)$(bg end)"
+     fi
+    done
+  done
+else
+  echo "$(br)no command line modifications to namelist files..."
+fi
+
+
+return;
+}
+###############################################################################
+
+
+###############################################################################
+get_firstandlastyear () {
+###############################################################################
+### get first and last year from globe_namelist
+###############################################################################
+
+### if new run or branch restart; read YEAR from kglobe_firstyear
+### for basic restart; YEAR = kglobe_lastyear of previous run + 1
+
+if [ "${RESTART}" == "0" ] || [ "${RESTART}" == "2" ]; then
+  YEAR=$(get_namelist_value ${EXP_DIR}/globe_namelist kglobe_firstyear)
+else
+  YEAR=$(get_namelist_value ${NAMELIST_DIR}/globe_namelist kglobe_lastyear)
+  YEAR=$(($YEAR + 1))
+fi
+
+### read LASTYEAR from kglobe_lastyear
+LASTYEAR=$(get_namelist_value ${EXP_DIR}/globe_namelist kglobe_lastyear)
+
+echo
+echo "YEAR=${YEAR}"
+echo "LASTYEAR=${LASTYEAR}"
+if [ $MAXJOBYEARS -gt 0 ]; then
+  echo "MAXJOBYEARS=${MAXJOBYEARS}"
+fi
+
+if [ $LASTYEAR -lt $YEAR ] && [ $RESTART -gt 0 ]; then
+  error_exit "LASTYEAR must be >= current YEAR, try setting kglobe_lastyear"
+fi
+
+return
+}
+###############################################################################
+
+
+###############################################################################
+create_run_directory () {
+###############################################################################
+### create EXP_RUNDIR ${EXP}_${YEAR}_${LASTYEAR} and copy namelists there
+###############################################################################
+
+### mkdir run directory with leading zeroes
+JOBNAME=${EXP}_$(printf "%04d" ${JOBLASTYEAR})
+EXP_RUNDIR=${EXP_DIR}/${JOBNAME}
+
+### make sure run directory doesn't already exist
+if [ -d ${EXP_RUNDIR} ]; then
+  rm ${EXP_DIR}/*namelist
+  error_exit "ERROR: Run directory ${EXP_RUNDIR} already exists!"
+fi
+
+echo "$(br)$(hr)"
+echo "$(br)creating run directory for years ${YEAR} to ${JOBLASTYEAR}..."
+mkdir -p ${EXP_RUNDIR}
+echo "${EXP_RUNDIR}"
+
+### move namelist files to EXP_RUNDIR
+echo "$(br)moving namelist files to run directory..."
+for FILE in "${NAMELIST_FILES[@]}"; do
+  cp -v ${EXP_DIR}/${FILE} ${EXP_RUNDIR}/${FILE}
+done
+
+return;
+}
+###############################################################################
+
+
+###############################################################################
+manage_restart_settings () {
+###############################################################################
+### usage: manage_restart_settings
+###############################################################################
+
+local FILE
+
+echo "$(br)processing restart options..."
+### check for restart files, if necessary
+case ${RESTART} in
+  0) ### new run ###
+
+  echo "RESTART=${RESTART}$(br)no restart files required"
+
+  ;;
+  1|2) ### normal restart or branch restart ###
+
+  if [ "x${DEPEND}" == "x" ]; then
+
+    echo "RESTART=${RESTART}$(br)checking for restart files in RESTART_DIR..."
+
+    ### check that restart directory is defined and exists
+    if [[ "x${RESTART_DIR}" == "x" || ! -d "${RESTART_DIR}"  ]]; then
+      error_exit "ERROR: Restart directory ${RESTART_DIR} not found! Check RESTART_DIR"
+    fi
+
+    ### check that restart files exist
+    for FILE in "${RESTART_FILES[@]}"; do
+      if [ -f ${RESTART_DIR}/${FILE} ]; then
+        echo "restart file ${FILE} found in ${RESTART_DIR}"
+      else
+        echo "$(bg yellow)$(c white)WARNING: ${FILE} not found in ${RESTART_DIR}...check RESTART_DIR directory path$(c end)$(bg end)"
+      fi
+    done
+  else
+    echo "RESTART=${RESTART}"
+    echo "pbs job dependency set to ${DEPEND}...can not check restart files at this time"
+  fi
+
+  ;;
+  *)  ### incorrect restart setting ###
+  error_exit "ERROR: kglobe_restart set outside proper range [0/1/2]."
+  ;;
+esac
+
+### update restart and lastyear values for globe_namelist
+nmlRESTART=$(get_namelist_value ${EXP_RUNDIR}/globe_namelist kglobe_restart)
+if [ ! "$nmlRESTART" == "$RESTART" ]; then
+  replace_namelist_value ${EXP_RUNDIR}/globe_namelist kglobe_restart ${RESTART}
+fi
+nmlLASTYEAR=$(get_namelist_value ${EXP_RUNDIR}/globe_namelist kglobe_lastyear)
+if [ ! "$nmlLASTYEAR" == "$JOBLASTYEAR" ]; then
+  replace_namelist_value ${EXP_RUNDIR}/globe_namelist kglobe_lastyear ${JOBLASTYEAR}
+fi
+
+## if branch restart (RESTART=2), then turn off kspinup option
+if [ "${RESTART}" == "2" ]; then
+  nmlKSPINUP=$(get_namelist_value ${EXP_RUNDIR}/jedi_namelist kspinup)
+  if [ ! "${nmlKSPINUP}" == "0" ]; then
+    echo "kspinup should be set to 0 in jedi_namelist for kglobe_restart=2"
+    replace_namelist_value ${EXP_RUNDIR}/jedi_namelist kspinup 0
+  fi
+fi
+
+return;
+}
+##############################################################################
+
+
+##############################################################################
+create_jobscript () {
+###############################################################################
+### creates job script for submitting job to cluster
+### * defines PBS directives
+### * copies input files to local scratch directory TMPDIR on job host
+### * runs jedi executable
+### * copies output files back to EXP_RUNDIR
+### designed to work for zodiac.jpl.nasa.gov
+### it will need to be modified for other clusters
+###############################################################################
+JOBSCRIPT="${EXP_RUNDIR}/pbs_${JOBNAME}.sh"
+echo "creating job runscript...$(br)$JOBSCRIPT"
+
+cat >${JOBSCRIPT}<<EOF
+#PBS -N $JOBNAME
+#PBS -o ${EXP_RUNDIR}/$JOBNAME.out
+#PBS -j oe
+#PBS -l select=${NODES}:ncpus=${NCPUS}:mpiprocs=${NCPUS}
+#PBS -q $QUEUE
+#PBS -l walltime=${WALLTIME}
+#PBS -V
+
+EOF
+
+if [ ! "x${DEPEND}" == "x" ]; then
+  echo "#PBS -W depend=afterok:${DEPEND}" >> ${JOBSCRIPT}
+fi
+
+echo "export PBS_O_WORKDIR=${EXP_RUNDIR}" >> ${JOBSCRIPT}
+
+cat >>${JOBSCRIPT}<<EOF
+echo ******************************************************
+echo -n 'Job is running on node '; cat \$PBS_NODEFILE
+echo ******************************************************
+echo PBS: qsub is running on \$PBS_O_HOST
+echo PBS: originating queue is \$PBS_O_QUEUE
+echo PBS: executing queue is \$PBS_QUEUE
+echo PBS: working directory is \$PBS_O_WORKDIR
+echo PBS: execution mode is \$PBS_ENVIRONMENT
+echo PBS: job identifier is \$PBS_JOBID
+echo PBS: job name is \$PBS_JOBNAME
+echo PBS: node file is \$PBS_NODEFILE
+echo PBS: current home directory is \$PBS_O_HOME
+echo PBS: PATH is \$PBS_O_PATH
+echo ******************************************************
+EOF
+
+echo "# *** load appropriate modules ***" >>  ${JOBSCRIPT}
+if [ -f ${BUILD_DIR}/modules ]; then
+echo "source /usr/share/modules/init/bash" >>  ${JOBSCRIPT}
+cat ${BUILD_DIR}/modules >> ${JOBSCRIPT}
+else
+error_exit "Modules files ${BUILD_DIR}/modules not found!"
+fi
+
+
+echo "# *** symbolically link input files to EXP_RUNDIR ***" >>  ${JOBSCRIPT}
+
+for FILE in "${MODELX[@]/#/${BUILD_DIR}/}" \
+"${FORCING_FILES[@]/#/${FORCING_DIR}/}" \
+"${SPECPARM_FILE}" \
+"${PCO2_FILE}" \
+"${PARTAB_FILE}" \
+"${SURFACE_FILES[@]/#/${SURFACE_DIR}/}"; do
+  if [ -f ${FILE} ]; then
+    echo "ln -s -v ${FILE} ${EXP_RUNDIR}/${FILE##*/}" >> ${JOBSCRIPT}
+  fi
+done
+
+if [ "$RESTART" == "1" ] || [ "$RESTART" == "2" ]; then
+echo "# *** copy restart files to local scratch directory TMPDIR ***" >> ${JOBSCRIPT}
+  for FILE in "${RESTART_FILES[@]}"; do
+cat >>${JOBSCRIPT}<<EOF
+    if [ ! -f ${RESTART_DIR}/${FILE} ] || [ -h ${RESTART_DIR}/${FILE} ]; then
+		echo "ERROR: Restart file ${RESTART_DIR}/${FILE} not found!"; exit 1
+    else 
+    	ln -s -v ${RESTART_DIR}/${FILE} ${EXP_RUNDIR}/${FILE}
+    fi
+EOF
+  done
+else
+	echo "# *** no restart files necessary ***" >> ${JOBSCRIPT}
+fi
+
+
+cat >>${JOBSCRIPT}<<EOF
+
+# *** run jedi executable ***
+cd ${EXP_RUNDIR}
+mpiexec -n ${NCPUS} ./${MODELX}
+
+# check if jedi was successful before copying restart cfg
+if [ $? -eq 0 ] && [ -f "jedi_restart" ] && [ ! -L "jedi_restart" ]; then
+  cp -f -v ${EXP_RUNDIR}/${JOBNAME}.restart ${EXP_DIR}/${EXP}.restart
+else
+  echo "Something went wrong! ${MODELX} did not produce restart files."
+fi
+EOF
+
+
+if [ $POST -eq 1 ]; then
+
+if [ $COMPRESS -ne 0 ]; then
+	COMPRESSOPT="-z zip2"
+else
+	COMPRESSOPT=""
+fi
+
+if [ ${NUMPOSTYEARS} -gt 0 ]; then
+	FIRSTPOSTYEAR=$((${JOBLASTYEAR} - ${NUMPOSTYEARS} + 1))
+	if [ ${FIRSTPOSTYEAR} -lt ${YEAR} ]; then
+  		FIRSTPOSTYEAR=${YEAR}
+	fi
+    SELPOSTYEARS="-selyear,${FIRSTPOSTYEAR}/${JOBLASTYEAR}"
+else
+	SELPOSTYEARS=""
+fi
+
+# check for cdo climate data operators before postprocessing jedi_output.srv
+if type "cdo" &> /dev/null; then
+
+cat >>${JOBSCRIPT}<<EOF
+# *** postprocess jedi output ***
+
+cdo -f nc4c ${COMPRESSOPT} -t ${PARTAB_FILE##*/} ifthen landsea.nc  -setgrid,landsea.nc jedi_output.srv jedi_output.nc4
+cdo yearmean jedi_output.nc4 jedi_yearmean.nc4
+cdo -ymonmean ${SELPOSTYEARS} jedi_output.nc4 jedi_ymonmean.nc4
+cdo -timmean jedi_ymonmean.nc4 jedi_timmean.nc4
+if [ -f jedi_output.nc4 ]; then rm jedi_output.srv; fi
+EOF
+else
+echo "$# 'cdo' not found for postprocessing!" >> ${JOBSCRIPT}
+fi
+fi
+
+return;
+}
+###############################################################################
+
+###############################################################################
+replace_namelist_value () {
+###############################################################################
+### replaces parameter value in Fortran namelist file with new value
+### usage: replace_namelist_value <namelist file> <parameter> <value>
+###############################################################################
+
+NMLFILE=$1
+NMLPARAM=$2
+NMLVALUE=$3
+
+if [ ! -f $NMLFILE ]; then
+  error_exit "ERROR: Namelist file $NMLFILE not found!"
+fi
+
+msg1=$(grep "${NMLPARAM}\s*=" $NMLFILE )
+
+if [ ! "x${msg1}" == "x"  ]; then
+  NMLTMP=$(mktemp nml.XXXXXX)
+
+  awk -F' *= *' -v nmlparam="$NMLPARAM" -v nmlvalue="$NMLVALUE" \
+  'BEGIN{OFS="="} { if ($1==nmlparam) { $2='nmlvalue'"," } print }' $NMLFILE > $NMLTMP
+
+  msg2=$(grep "$NMLPARAM" $NMLTMP )
+
+  echo "modifying $(basename $NMLFILE):"
+  echo "$(bg red)$(c white)< ${msg1}$(c end)$(bg end)"
+  echo "$(bg green)$(c white)> ${msg2}$(c end)$(bg end)"
+
+  mv $NMLTMP $NMLFILE
+else
+  error_exit "ERROR: Parameter $NMLPARAM not found in namelist file ${NMLFILE}!"
+fi
+
+return;
+}
+###############################################################################
+
+###############################################################################
+get_namelist_value () {
+###############################################################################
+### retrieve parameter value from Fortran namelist file
+### usage: get_namelist_value <namelist file> <parameter>
+###############################################################################
+
+NMLFILE=$1
+NMLPARAM=$2
+
+if [ ! -f $NMLFILE ]; then
+  error_exit "ERROR: Namelist file $NMLFILE not found!"
+fi
+
+msg1=$(grep "${NMLPARAM}\s*=" $NMLFILE )
+
+if [ ! x"$msg1" == "x"  ]; then
+  awk -v nmlparam=$NMLPARAM \
+  'BEGIN{FS=" *= *|,";OFS="="} { if ($1==nmlparam) \
+  { print $2 } }' $NMLFILE
+else
+  error_exit "ERROR: Parameter $NMLPARAM not found in namelist file ${NMLFILE}!"
+fi
+
+return;
+}
+###############################################################################
+
+
+###############################################################################
+error_exit () {
+###############################################################################
+### display error message, clean up and exit
+###############################################################################
+
+ERRORMSG="$1"
+LASTLINE="$2"         # line of error occurrence
+LASTERR="$3"          # error code
+
+echo "$(bg red)$(c white)${ERRORMSG:-"ERROR: Unknown error"}$(c end)$(bg end)"
+if [ "x${2}" != "x" ]; then
+    echo "$(bg red)$(c white)at line ${LASTLINE} with exit code ${LASTERR}$(c end)$(bg end)"
+fi
+
+# clean_up
+exit 1
+}
+###############################################################################
+
+###############################################################################
+cleanup () {
+###############################################################################
+### saves $LOGFILE without escape characters on exit
+###############################################################################
+
+  echo "$(br)$(hr)"
+
+  LOGFILE=${PWD}/runjedi_${JOBNAME}.log
+  echo "$(br)saving the output of this script...$(br)${LOGFILE}"
+  mv ${TMPLOG} ${LOGFILE}
+  sed -i "s,\x1B\[[0-9;]*[a-zA-Z],,g" ${LOGFILE}
+
+}
+###############################################################################
+
+###############################################################################
+display_scriptinfo () {
+###############################################################################
+### displays information about this script
+### usage: display_scriptinfo $0
+###############################################################################
+
+THIS_SCRIPT=$1
+CMDOPTS=$2
+
+echo "$(br)$(hr '*')"
+echo "$( cd "$( dirname "${THIS_SCRIPT}" )" && pwd )/$(basename ${THIS_SCRIPT}) ${CMDOPTS}"
+echo "$(hr)"
+echo "git revision: $(git describe --dirty --long --always --all)"
+echo "host: $(uname -n): $(uname -s) $(uname -r) $(uname -m) $(uname -p)"
+echo "date: $(date)"
+echo "$(hr '*')"
+
+if [ "$(git status --porcelain)x" != "x" ]; then
+  echo "$(bg yellow)$(c white)WARNING: Git repository is dirty!$(c end)$(bg end)"
+fi
+}
+###############################################################################
+
+
+###############################################################################
+### Main Program
+###############################################################################
+
+### read in initial experiment config file
+EXPCFG=$1
+if [ ! -f ${EXPCFG} ] || [ $# -lt 1 ]; then
+  display_usage
+  exit 0
+fi
+
+### log script out to temporary file to save on exit
+TMPLOG=$(mktemp /tmp/runjedi.XXXXX)
+exec > >(tee "$TMPLOG")
+exec 2>&1
+trap 'error_exit "" ${LINENO} ${?}' ERR
+trap 'cleanup' EXIT
+
+### display script path, host info, date, and latest git commit info
+THIS_SCRIPT=${0}
+display_scriptinfo ${THIS_SCRIPT} "$@"
+
+### define filenames, directories, script options variables
+define_variables
+
+echo "$(br)reading experiment configuration file...$(br)${EXPCFG}:$(br)"
+source ${EXPCFG}
+cat ${EXPCFG} | sed -e 's/^/    /'
+
+### process command line modifications to experiment configuration file
+cmdline=( "${@:2}" ); process_cmdline_opts
+
+### create experiment directory
+create_exp_directory
+
+### check that input files exist
+check_input_files
+
+### process command line modifications to namelist files in EXP_DIR
+process_namelist_opts
+
+### get first and last year from globe_namelist
+get_firstandlastyear
+
+### loop until all years are run
+while [ $YEAR -le $LASTYEAR ]; do
+
+  ### calculate number of years for this job
+  YEARSLEFT=$(($LASTYEAR - $YEAR + 1))
+  if [ $MAXJOBYEARS -le 0 ] || [ $MAXJOBYEARS -gt $YEARSLEFT ]; then
+    JOBYEARS=$YEARSLEFT
+  else
+    JOBYEARS=$MAXJOBYEARS
+  fi
+  JOBLASTYEAR=$(($YEAR + $JOBYEARS - 1))
+
+  ### create directory for this run and copy over namelist files
+  create_run_directory
+
+  ### check for restart files and update globe_namelist as necessary
+  manage_restart_settings
+
+  ### save configuration file to redo this run if necessary
+  EXPCFG="${EXP_RUNDIR}/${JOBNAME}.cfg"
+  NAMELIST_DIR=${EXP_RUNDIR}; write_expconfig_file ${EXPCFG}
+
+  ### create pbs jobscript
+  ### submit run and get jobid dependency for any subsequent run
+  ### add jobid to killscript in experiment directory
+  create_jobscript
+  DEPEND=$(qsub ${JOBSCRIPT}); echo "$(br)submitting job ${JOBNAME} to ${QUEUE}"
+  echo "qdel ${DEPEND}" >> ${KILLSCRIPT}
+
+  ### save restart configuration file to do any subsequent runs
+  EXPCFG="${EXP_RUNDIR}/${JOBNAME}.restart"
+  RESTART=1; RESTART_DIR=${EXP_RUNDIR}; write_expconfig_file ${EXPCFG}
+
+  ### increment year
+  YEAR=$(($JOBLASTYEAR + 1))
+done
