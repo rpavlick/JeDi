@@ -267,12 +267,10 @@ EOF
 
 echo "Saving modules files to ${MODULES_FILE}"
 cat >${MODULES_FILE} <<EOF
-module load compilers/intel-13.1.3_64
-module load netcdf/intel-4.1.1
-module load mpi-mvapich2/intel-1.5.1p1_64
-module load hdf5/intel-1.8.5
-module load misc-intel/zlib-1.2.6
-module load misc-intel/szip-2.1
+module load intel/fc/10.1.015
+module load netcdf/intel_fc_10.1/4.0
+module load mpich2/intel_fc_10.1/1.4.1p1
+
 EOF
   ;;
 
@@ -293,7 +291,8 @@ EOF
   VOPT="-v"
 echo "Saving modules files to ${MODULES_FILE}"
 cat >${MODULES_FILE} <<EOF
-module load compilers/gcc-4.3-62_64 mpi-mvapich2/gcc-1.5.1p1_64
+module load openmpi/gnu_fc_4.4.4/1.4.4
+
 EOF
    ;;
 
