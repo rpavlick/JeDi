@@ -443,7 +443,8 @@
           zts = zts + 1
           __globe_read_srvnc(tmp_fileID,zhead,ztemp)
           __globe_read_srvnc(tmp_fileID,zhead,iostat=ioerr)
-          if (ioerr .gt. 0) __error_read(ioerr,sfile)
+!    * bug. loop needs to read /past/ the end of the file to determine loop should stop next time around
+!         if (ioerr .gt. 0) __error_read(ioerr,sfile)
         enddo
         if (ktspd .eq. 0) ktspd = zts
         if (zts .ne. ktspd) then
