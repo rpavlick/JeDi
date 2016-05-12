@@ -282,7 +282,7 @@ EOF
 
   MPI_FC="mpif90"
   MPIOPT="-D__MPI"
-  FOPTS="-ffree-line-length-none"
+  FOPTS="-ffree-line-length-none -O3"
 
   REAL8OPT="-fdefault-real-8"
 
