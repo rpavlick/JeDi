@@ -1,6 +1,9 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
 
+!> \file jedi_fio.F90
+!> \brief JEDI
+
 !     ******************************************************************
 !     JEDI_READ_NAMELIST
 !     ******************************************************************
@@ -446,6 +449,9 @@
       call globe_mpreadgp(kFile_Restart,dSACWL, kMaxSPP,NHOR,kNumGPts,gNHOR)
       call globe_mpreadgp(kFile_Restart,dSACWR, kMaxSPP,NHOR,kNumGPts,gNHOR)
 
+      call globe_mpreadgp(kFile_Restart,dSACTOT, kMaxSPP,NHOR,kNumGPts,gNHOR)
+      call globe_mpreadgp(kFile_Restart,dSACVEG, kMaxSPP,NHOR,kNumGPts,gNHOR)
+
       if (kmypid == kroot) close(kFile_Restart, STATUS='DELETE')
 
       return
@@ -551,6 +557,9 @@
       call globe_mpwritegp(kFile_Restart,dSACWL, kMaxSPP,NHOR,kNumGPts,gNHOR)
       call globe_mpwritegp(kFile_Restart,dSACWR, kMaxSPP,NHOR,kNumGPts,gNHOR)
 
+      call globe_mpwritegp(kFile_Restart,dSACTOT,kMaxSPP,NHOR,kNumGPts,gNHOR)
+      call globe_mpwritegp(kFile_Restart,dSACVEG,kMaxSPP,NHOR,kNumGPts,gNHOR)
+
       if (kmypid == kroot) close(kFile_Restart)
 
       return
@@ -583,6 +592,9 @@
       __globe_mpga_to_from(gdSACWL,dSACWL)
       __globe_mpga_to_from(gdSACWR,dSACWR)
 
+      __globe_mpga_to_from(gdSACTOT,dSACTOT)
+      __globe_mpga_to_from(gdSACVEG,dSACVEG)
+
       if (kPop_dyn .eq. 2) then
         __globe_mpga_to_from(gdSAtau,dSAtau)
       endif
@@ -600,6 +612,8 @@
         gdSACWL(:,:)    = gdSACWL(:,:)  / REAL(nSACount)
         gdSACWR(:,:)    = gdSACWR(:,:)  / REAL(nSACount)
         gdSAtau(:,:)    = gdSAtau(:,:)  / REAL(nSACount)
+        gdSACTOT(:,:)   = gdSACTOT(:,:) / REAL(nSACount)
+        gdSACVEG(:,:)   = gdSACVEG(:,:) / REAL(nSACount)
       endif
 
 !     * write out successful species
@@ -858,31 +872,32 @@
 !     * gather fields
 
       __globe_mpga_to_from(gdSARAbd,dSARAbd)
-!      __globe_mpga_to_from(gdSAGPP,dSAGPP)
-!      __globe_mpga_to_from(gdSANPP,dSANPP)
+!      __globe_mpga_to_from(gdSARES,dSARES)
+      __globe_mpga_to_from(gdSAGPP,dSAGPP)
+      __globe_mpga_to_from(gdSANPP,dSANPP)
 !      __globe_mpga_to_from(gdSACS,dSACS)
 !      __globe_mpga_to_from(gdSACA,dSACA)
 !      __globe_mpga_to_from(gdSACL,dSACL)
 !      __globe_mpga_to_from(gdSACR,dSACR)
 !      __globe_mpga_to_from(gdSACWL,dSACWL)
 !      __globe_mpga_to_from(gdSACWR,dSACWR)
-
-!      if (kPop_dyn .eq. 2) then
-!        __globe_mpga_to_from(gdSAtau,dSAtau)
-!      endif
+      __globe_mpga_to_from(gdSACTOT,dSACTOT)
+      __globe_mpga_to_from(gdSACVEG,dSACVEG)
 
 !     * averaging
-
       if ((kmypid == kroot) .and. (nSACount .gt. 0)) then
         gdSARAbd(:,:)   = gdSARAbd(:,:) / REAL(nSACount)
-!        gdSAGPP(:,:)    = gdSAGPP(:,:)  / REAL(nSACount)
-!        gdSANPP(:,:)    = gdSANPP(:,:)  / REAL(nSACount)
+!        gdSARES(:,:)    = dSARES(:,:)   / REAL(nAccuCount)
+        gdSAGPP(:,:)    = gdSAGPP(:,:)  / REAL(nSACount)
+        gdSANPP(:,:)    = gdSANPP(:,:)  / REAL(nSACount)
 !        gdSACS(:,:)     = gdSACS(:,:)   / REAL(nSACount)
 !        gdSACA(:,:)     = gdSACA(:,:)   / REAL(nSACount)
 !        gdSACL(:,:)     = gdSACL(:,:)   / REAL(nSACount)
 !        gdSACR(:,:)     = gdSACR(:,:)   / REAL(nSACount)
 !        gdSACWL(:,:)    = gdSACWL(:,:)  / REAL(nSACount)
 !        gdSACWR(:,:)    = gdSACWR(:,:)  / REAL(nSACount)
+        gdSACTOT(:,:)   = gdSACTOT(:,:)  / REAL(nSACount)
+        gdSACVEG(:,:)   = gdSACVEG(:,:)  / REAL(nSACount)
 !        gdSAtau(:,:)    = gdSAtau(:,:)  / REAL(nSACount)
       endif
 
@@ -901,6 +916,16 @@
         call globe_open_output(TRIM(sfile), kFile_SPPGrid, kFile_Diag)
 
         __globe_writeoutput(kFile_SPPGrid,gdSARAbd(1:kNumGPts,:),5400)
+        __globe_writeoutput(kFile_SPPGrid,gdSAGPP(1:kNumGPts,:),5300)
+        __globe_writeoutput(kFile_SPPGrid,gdSANPP(1:kNumGPts,:),5301)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACS(1:kNumGPts,:),5372)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACA(1:kNumGPts,:),5373)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACL(1:kNumGPts,:),5374)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACR(1:kNumGPts,:),5375)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACWL(1:kNumGPts,:),5376)
+!        __globe_writeoutput(kFile_SPPGrid,gdSACWR(1:kNumGPts,:),5377)
+        __globe_writeoutput(kFile_SPPGrid,gdSACVEG(1:kNumGPts,:),5304)
+        __globe_writeoutput(kFile_SPPGrid,gdSACTOT(1:kNumGPts,:),5399)
 
         call globe_close_output(kFile_SPPGrid, kFile_Diag)
       endif
