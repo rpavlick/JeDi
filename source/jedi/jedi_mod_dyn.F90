@@ -1,6 +1,9 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
 
+!> \file jedi_mod_dyn.F90
+!> \brief JEDI 
+
       module jedi_dyn_mod
 
       REAL,allocatable,dimension(:) :: zWMAX
