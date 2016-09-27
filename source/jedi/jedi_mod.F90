@@ -1,6 +1,9 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
 
+!> \file jedi_mod.F90
+!> \brief JEDI variable definitions
+
       module jedi_mod
       use globe_functions
 
@@ -187,43 +190,43 @@
 
 !     * ecophysiological parameters
 
-      real    :: pq10R       = 2.0     ! q10 value for resp
-      real    :: pQ10H       = 2.0     ! value of Q10 for heterotrophic respiration
-      real    :: pC_GPP      = 1.2E-1  ! light use efficiency c_GPP in gC/W d
-      real    :: pC_RES      = 2.0E-3  ! specific respiration rate in gC/d gC
-      real    :: pC_LAI      = 0.030   ! specific leaf area in m^2 gC^-1
-      real    :: pC_TRS      = 0.5     ! specific supply rate in mm d^-1 gC^-1
-      real    :: pC_WSMAX    = 40.0    ! specific root depth in (mm gC^-1)^-1/2
-      real    :: pC_WLMAX    = 0.2     ! specific canopy capacity in mm m^2
-      real    :: pC_FFOR     = 0.002   ! forest ratio conversion in gC
-      real    :: pPAW0       = 50.0    ! minimum soil moisture capacity in mm
-      real    :: pAlb0       = 0.2     ! unvegetated albedo
-      real    :: PAlb1       = 0.12    ! vegetated albedo
-      real    :: pT_CRIT     = 10.0    ! critical temperature in K
-      real    :: pMortTau    = 150.0   ! mortality par (years)
-      real    :: pDistTau    = 3.0     ! disturbances par (years)
-      real    :: pRAbdTau    = 1.0     ! relative abundance timescale (years)
-      real    :: pT_GPP1     = 10.0    ! critical temperature
-      real    :: pT_GPP2     = 8.0     ! critical temperature
+      real    :: pq10R       = 2.0     !< q10 value for resp
+      real    :: pQ10H       = 2.0     !< value of Q10 for heterotrophic respiration
+      real    :: pC_GPP      = 1.2E-1  !< light use efficiency c_GPP in gC/W d
+      real    :: pC_RES      = 2.0E-3  !< specific respiration rate in gC/d gC
+      real    :: pC_LAI      = 0.030   !< specific leaf area in m^2 gC^-1
+      real    :: pC_TRS      = 0.5     !< specific supply rate in mm d^-1 gC^-1
+      real    :: pC_WSMAX    = 40.0    !< specific root depth in (mm gC^-1)^-1/2
+      real    :: pC_WLMAX    = 0.2     !< specific canopy capacity in mm m^2
+      real    :: pC_FFOR     = 0.002   !< forest ratio conversion in gC
+      real    :: pPAW0       = 50.0    !< minimum soil moisture capacity in mm
+      real    :: pAlb0       = 0.2     !< unvegetated albedo
+      real    :: PAlb1       = 0.12    !< vegetated albedo
+      real    :: pT_CRIT     = 10.0    !< critical temperature in K
+      real    :: pMortTau    = 150.0   !< mortality par (years)
+      real    :: pDistTau    = 3.0     !< disturbances par (years)
+      real    :: pRAbdTau    = 1.0     !< relative abundance timescale (years)
+      real    :: pT_GPP1     = 10.0    !< critical temperature
+      real    :: pT_GPP2     = 8.0     !< critical temperature
       real    :: cPETCorr    = 1.0
 
 !     * parameters related to litter and soil pools
 
-      real   :: pLitterTau      = 2.0   ! litter residence time (years)
-      real   :: pCWDTau         = 25.0  ! woody debris residence time (years)
-      real   :: pSoilTau        = 100.0 ! soil carbon residence time (years)
-      real   :: pLitterFrac2Atm = 0.77  ! fraction of litter decay going to atmosphere
-      real   :: pCWDFrac2Atm    = 0.20  ! fraction of woody decay going to atmosphere
+      real   :: pLitterTau      = 2.0   !< litter residence time (years)
+      real   :: pCWDTau         = 25.0  !< woody debris residence time (years)
+      real   :: pSoilTau        = 100.0 !< soil carbon residence time (years)
+      real   :: pLitterFrac2Atm = 0.77  !< fraction of litter decay going to atmosphere
+      real   :: pCWDFrac2Atm    = 0.20  !< fraction of woody decay going to atmosphere
 
-      real    :: pN_RES      = 0.218   ! specific respiration in gC/gN/d
-      real    :: pCN_Wood    = 0.00303 ! 1/C:N Ratio for Woody Tissue
-      real    :: pCN_Root    = 0.02    ! 1/C:N Ratio for Fine Roots
-      real    :: pCN_Leaf    = 0.08    ! 1/C:N Ratio for Leaf Roots
+      real    :: pN_RES      = 0.218   !< specific respiration in gC/gN/d
+      real    :: pCN_Wood    = 0.00303 !< 1/C:N Ratio for Woody Tissue
+      real    :: pCN_Root    = 0.02    !< 1/C:N Ratio for Fine Roots
+      real    :: pCN_Leaf    = 0.08    !< 1/C:N Ratio for Leaf Roots
       real    :: cT_MIN      = -5.0
 
-      real    :: pA0         = 1.0     ! initial seed size A0
-      real    :: pSeedTau    = 10.0    ! seed decomposition time scale (years)
-      real    :: pSeedFix    = 0.01    ! seed fix constant (unitless)
+      real    :: pA0         = 1.0     !< initial seed size A0
+      real    :: pSeedTau    = 10.0    !< seed decomposition time scale (years)
+      real    :: pSeedFix    = 0.01    !< seed fix constant (unitless)
 
       integer :: kGermFix    = 1       ! flag for germination fix
       integer :: kCbal       = 1       ! flag for germination fix
@@ -231,16 +234,16 @@
 
 !     * parameters for speciation and migration and Disturbances
 
-      real    :: pMig        = 0.01    ! fraction of seeds that disperse to neigbors
-      real    :: pSpec       = 0.1     ! variance for variation of species
+      real    :: pMig        = 0.01    !< fraction of seeds that disperse to neigbors
+      real    :: pSpec       = 0.1     !< variance for variation of species
 
 !     * CO2 fertilization factor defined as GPP ~ (1 + beta ln(C/C0))
 !     beta = 0.3-0.6, C0 = 360ppm - Harvey 1989
 
       real     :: pCO2sens   = 0.0
       real     :: pPCO2      = 364.0
-      real, parameter :: co2_ref = 364.0 ! CO2 reference concentration in ppm
-      real, parameter :: pjedi_defaultpaw = 0.25 ! default soil texture if paw.srv not present
+      real, parameter :: co2_ref = 364.0 !< CO2 reference concentration in ppm
+      real, parameter :: pjedi_defaultpaw = 0.25 !< default soil texture if paw.srv not present
 
       real, parameter :: cTmin    = -2.5
       real, parameter :: cTref    = 20.0
@@ -380,11 +383,21 @@
       real, allocatable         :: dGGermCnt (:)
       real, allocatable         :: dGDeadCnt (:)
 
+      ! Monthly accumulations
+      real, allocatable :: dGARAbd   (:)
       real, allocatable :: dGAGPP    (:)
       real, allocatable :: dGANPP    (:)
       real, allocatable :: dGARES    (:)
       real, allocatable :: dGARESH   (:)
       real, allocatable :: dGALIT    (:)
+
+      real, allocatable :: dGACA (:)
+      real, allocatable :: dGACL (:)
+      real, allocatable :: dGACR (:)
+      real, allocatable :: dGACWL(:)
+      real, allocatable :: dGACWR(:)
+
+      real, allocatable :: dGACVEG(:)
 
       real, allocatable :: dGASOLRAD (:)
       real, allocatable :: dGALH     (:)
@@ -440,6 +453,7 @@
 
 !     * variables for gather
 
+      real, allocatable,target :: gdGARAbd (:)
       real, allocatable,target :: gdGAGPP  (:)
       real, allocatable,target :: gdGANPP  (:)
       real, allocatable,target :: gdGANEE  (:)
@@ -447,6 +461,14 @@
       real, allocatable,target :: gdGARESH (:)
       real, allocatable,target :: gdGALIT  (:)
       real, allocatable        :: gdGARESE (:)
+
+      real, allocatable,target :: gdGACA  (:)
+      real, allocatable,target :: gdGACL  (:)
+      real, allocatable,target :: gdGACR (:)
+      real, allocatable,target :: gdGACWL (:)
+      real, allocatable,target :: gdGACWR  (:)
+
+      real, allocatable,target :: gdGACVEG (:)
 
       real, allocatable,target :: gdGACALOSS  (:)
       real, allocatable,target :: gdGACLLOSS  (:)
@@ -511,11 +533,15 @@
       real, allocatable :: dSACWL      (:,:)
       real, allocatable :: dSACWR      (:,:)
 
+      real, allocatable :: dSACVEG      (:,:)
+      real, allocatable :: dSACTOT      (:,:)
+
       real, allocatable :: dSAtau      (:,:)
       real, allocatable :: dSAtauM     (:,:)
 
 !     * variables for gather
 
+      real, allocatable :: gdRichness  (:,:)
       real, allocatable :: gdSARAbd    (:,:)
       real, allocatable :: gdSAGPP     (:,:)
       real, allocatable :: gdSANPP     (:,:)
@@ -525,6 +551,9 @@
       real, allocatable :: gdSACR      (:,:)
       real, allocatable :: gdSACWL     (:,:)
       real, allocatable :: gdSACWR     (:,:)
+
+      real, allocatable :: gdSACVEG    (:,:)
+      real, allocatable :: gdSACTOT    (:,:)
 
       real, allocatable :: gdSAtau     (:,:)
       real, allocatable :: gdSAtauM    (:,:)
@@ -781,6 +810,7 @@
       __deallocate(dGGermCnt)
       __deallocate(dGDeadCnt)
 
+      __deallocate(dGARAbd)
       __deallocate(dGAGPP)
       __deallocate(dGANPP)
       __deallocate(dGARES)
@@ -810,6 +840,14 @@
       __deallocate(dGACWRALLOC)
       __deallocate(dGACSALLOC)
 
+      __deallocate(dGACA)
+      __deallocate(dGACL)
+      __deallocate(dGACR)
+      __deallocate(dGACWL)
+      __deallocate(dGACWR)
+
+      __deallocate(dGACVEG)
+
       __deallocate(dGAFH2O)
       __deallocate(dGAFT)
 
@@ -837,6 +875,7 @@
       __deallocate(dGAMig)
       __deallocate(dGAExt)
 
+      __deallocate(gdGARAbd)
       __deallocate(gdGAGPP)
       __deallocate(gdGANPP)
       __deallocate(gdGANEE)
@@ -867,6 +906,14 @@
       __deallocate(gdGACWLALLOC)
       __deallocate(gdGACWRALLOC)
       __deallocate(gdGACSALLOC)
+
+      __deallocate(gdGACL)
+      __deallocate(gdGACR)
+      __deallocate(gdGACWL)
+      __deallocate(gdGACWR)
+      __deallocate(gdGACA)
+
+      __deallocate(gdGACVEG)
 
       __deallocate(gdGAFT)
       __deallocate(gdGAFH2O)
@@ -906,6 +953,9 @@
       __deallocate(dSACWL)
       __deallocate(dSACWR)
 
+      __deallocate(dSACTOT)
+      __deallocate(dSACVEG)
+
       __deallocate(dSAtau)
       __deallocate(dSAtauM)
       __deallocate(dSAMort)
@@ -913,6 +963,7 @@
       __deallocate(dSACol)
       __deallocate(dSAExcl)
 
+      __deallocate(gdRichness)
       __deallocate(gdSARAbd)
       __deallocate(gdSAGPP)
       __deallocate(gdSANPP)
@@ -922,6 +973,9 @@
       __deallocate(gdSACR)
       __deallocate(gdSACWL)
       __deallocate(gdSACWR)
+
+      __deallocate(gdSACTOT)
+      __deallocate(gdSACVEG)
 
       __deallocate(gdSAtau)
       __deallocate(gdSAtauM)
