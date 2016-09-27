@@ -1,6 +1,9 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
 
+!> \file jedi_globe.F90
+!> \brief JEDI 
+
 !     ------------------------------------------------------------------
 !     GLOBE INTERFACE FOR JEDI
 !     ------------------------------------------------------------------
