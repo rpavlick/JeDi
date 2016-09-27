@@ -1,6 +1,9 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
 
+!> \file jedi_dyn.F90
+!> \brief JEDI 
+
 !     ******************************************************************
 !     JEDI_STEP_MODEL_DYN
 !     ******************************************************************
@@ -654,7 +657,7 @@
       dGARESH(:) = dGARESH(:) + pLitterFrac2Atm * zGALOSS_LIT_CS(:)
       dGARESH(:) = dGARESH(:) + zGALOSS_LIT_CSLOW(:)
 
-!-    * update litter and soil pools
+!     * update litter and soil pools
 
       rLIT_CL(:)   = rLIT_CL(:)  + zGALOSS_CL(:)  + zGALOSS_CA(:) - zGALOSS_LIT_CL(:)
       rLIT_CR(:)   = rLIT_CR(:)  + zGALOSS_CR(:)  - zGALOSS_LIT_CR(:)
@@ -691,7 +694,7 @@
 
       do i = StartHOR, EndHOR
 
-!       * species-based accumulation for one point
+!       * species-based accumulation for one point (distributed)
 
         if (nonepoint .eq. 1) then
           dSALAI(i,iSPP)   = dSALAI(i,iSPP)   + zLAI(i)
@@ -708,24 +711,39 @@
           dSATRANS(i,iSPP) = dSATRANS(i,iSPP) + zTRANS(i)
         endif
 
-!       * species-based accumulation
+!       * species-based accumulation (distributed) (rCtot is *not* weighted by RA so as similar
+!         as possible to the value used by the richness in jedi.F90)
 
         dSARAbd(i,iSPP) = dSARAbd(i,iSPP) + dRAbd(i,iSPP)
-        dSAGPP(i,iSPP)  = dSAGPP(i,iSPP)  + zGPP(i)
-        dSANPP(i,iSPP)  = dSANPP(i,iSPP)  + zNPP(i)
-        dSACS(i,iSPP)   = dSACS(i,iSPP)   + rCS(i,iSPP)
-        dSACA(i,iSPP)   = dSACA(i,iSPP)   + rCA(i,iSPP)
-        dSACL(i,iSPP)   = dSACL(i,iSPP)   + rCL(i,iSPP)
-        dSACR(i,iSPP)   = dSACR(i,iSPP)   + rCR(i,iSPP)
-        dSACWL(i,iSPP)  = dSACWL(i,iSPP)  + rCWL(i,iSPP)
-        dSACWR(i,iSPP)  = dSACWR(i,iSPP)  + rCWR(i,iSPP)
+        dSAGPP(i,iSPP)  = dSAGPP(i,iSPP)  + dRAbd(i,iSPP) * zGPP(i)
+        dSANPP(i,iSPP)  = dSANPP(i,iSPP)  + dRAbd(i,iSPP) * zNPP(i)
+!        dSACS(i,iSPP)   = dSACS(i,iSPP)   + dRAbd(i,iSPP) * rCS(i,iSPP)
+!        dSACA(i,iSPP)   = dSACA(i,iSPP)   + dRAbd(i,iSPP) * rCA(i,iSPP)
+!        dSACL(i,iSPP)   = dSACL(i,iSPP)   + dRAbd(i,iSPP) * rCL(i,iSPP)
+!        dSACR(i,iSPP)   = dSACR(i,iSPP)   + dRAbd(i,iSPP) * rCR(i,iSPP)
+!        dSACWL(i,iSPP)  = dSACWL(i,iSPP)  + dRAbd(i,iSPP) * rCWL(i,iSPP)
+!        dSACWR(i,iSPP)  = dSACWR(i,iSPP)  + dRAbd(i,iSPP) * rCWR(i,iSPP)
+        dSACTOT(i,iSPP) = dSACTOT(i,iSPP) + rCtot(i,iSPP)
+        dSACVEG(i,iSPP) = dSACVEG(i,iSPP) + dRAbd(i,iSPP) * (rCA(i,iSPP) + rCWL(i,iSPP) + rCWR(i,iSPP) + rCL(i,iSPP) + rCR(i,iSPP))
 
 !       * grid-based accumulation
-!         using relative abundances of previous time step
+!       using relative abundances of previous time step
+!       these are reset monthly in jedi_output_reset
 
+        if(iSPP /= 1) then ! don't accumulate bare earth
+        dGARAbd(i)     = dGARAbd(i)     + dRAbd(i,iSPP)
+        endif
         dGAGPP(i)      = dGAGPP(i)      + dRAbd(i,iSPP) * zGPP(i)
         dGANPP(i)      = dGANPP(i)      + dRAbd(i,iSPP) * zNPP(i)
         dGARES(i)      = dGARES(i)      + dRAbd(i,iSPP) * zRES(i,iSPP)
+
+        dGACA(i)   = dGACA(i)   + rCA(i,iSPP)
+        dGACL(i)   = dGACL(i)   + rCL(i,iSPP)
+        dGACR(i)   = dGACR(i)   + rCR(i,iSPP)
+        dGACWL(i)  = dGACWL(i)  + rCWL(i,iSPP)
+        dGACWR(i)  = dGACWR(i)  + rCWR(i,iSPP)
+
+        dGACVEG(i)   = dGACVEG(i) + dRAbd(i,iSPP) * (rCA(i,iSPP) + rCWL(i,iSPP) + rCWR(i,iSPP) + rCL(i,iSPP) + rCR(i,iSPP))
 
         dGACLALLOC(i)  = dGACLALLOC(i)  + dRAbd(i,iSPP) * zALLOC_CL(i)
         dGACRALLOC(i)  = dGACRALLOC(i)  + dRAbd(i,iSPP) * zALLOC_CR(i)
