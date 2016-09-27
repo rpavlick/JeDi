@@ -1,10 +1,13 @@
 #define __ACTIVATE
 #include "../globe/globe_macros.f90"
+!> \file jedi.F90
+!> \brief Main routines of JEDI
+
 !
 !     JeDi - PopDyn
 !     =============
 !
-!     code development and testing by (in alphabetical order):
+!> @author code development and testing by (in alphabetical order):
 !       Kristin Bohn
 !       Axel Kleidon
 !       Ryan Pavlick
@@ -38,36 +41,36 @@
       real, allocatable :: tmp_input_g(:)
       real, allocatable :: tmp_input_ll(:)
 
-!     * display version information
+!    * display version information
 
       if (kmypid == kroot) call globe_show_version
 
-!     * set values for tiny and epsilon
+!    * set values for tiny and epsilon
 
       r8_tiny = tiny(r8_tiny)
       r8_epsilon = epsilon(r8_epsilon)
 
-!     * open diagnostic output file
+!    * open diagnostic output file
 
       call globe_open_diag(sfile_Diag, kFile_Diag)
 
       __diag(kFile_Diag,'jedi_init: start')
 
-!     * read namelist parameters
+!    * read namelist parameters
 
       call jedi_read_namelist
 
-!     * generating a seed for each process
+!    * generating a seed for each process
       rand_seed=((kmypid + 1) * (-1) * seed)
 
       if (krestart .le. 0) then
 
-!       * allocate fields
+!    * allocate fields
 
         call jedi_alloc
         if (kPop_dyn .gt. 0) call jedi_dyn_alloc
 
-!       * initialization of fields
+!    * initialization of fields
 
         rCSLOW(:)     = 0.0
         rLIT_CL(:)    = 0.0
@@ -107,7 +110,7 @@
 
       if (kdynamic .eq. 0) dRAbd(:,:) = rArea(:,:)
 
-!     * optional overwrite rLive with values from file
+!    * optional overwrite rLive with values from file
 
       if (ktopspecies == 1) then
         __diag(kFile_Diag,'jedi_init: read sfile_SPPTopGrid')
@@ -296,10 +299,19 @@
 !     * gather fields
 !     ------------------------------------------------------------------
 
+      __globe_mpga_to_from(gdGARAbd,dGARAbd)
       __globe_mpga_to_from(gdGAGPP,dGAGPP)
       __globe_mpga_to_from(gdGANPP,dGANPP)
       __globe_mpga_to_from(gdGARES,dGARES)
       __globe_mpga_to_from(gdGARESH,dGARESH)
+
+      __globe_mpga_to_from(gdGACR,dGACR)
+      __globe_mpga_to_from(gdGACA,dGACA)
+      __globe_mpga_to_from(gdGACL,dGACL)
+      __globe_mpga_to_from(gdGACWL,dGACWL)
+      __globe_mpga_to_from(gdGACWR,dGACWR)
+
+      __globe_mpga_to_from(gdGACVEG,dGACVEG)
 
       __globe_mpga_to_from(gdGASOLRAD,dGASOLRAD)
       __globe_mpga_to_from(gdGAFH2O,dGAFH2O)
@@ -318,14 +330,12 @@
       __globe_mpga_to_from(grLIT_CWL,rLIT_CWL)
       __globe_mpga_to_from(grLIT_CWR,rLIT_CWR)
 
-
       __globe_mpga_to_from(gdGAET,dGAET)
       __globe_mpga_to_from(gdGAESOIL,dGAESOIL)
       __globe_mpga_to_from(gdGALEVAP,dGALEVAP)
       __globe_mpga_to_from(gdGAQSURF,dGAQSURF)
       __globe_mpga_to_from(gdGATRANS,dGATRANS)
       __globe_mpga_to_from(gdGAQTOT,dGAQTOT)
-
 
       __globe_mpga_to_from(gdGAALB,dGAALB)
       __globe_mpga_to_from(gdGALAI,dGALAI)
@@ -353,17 +363,6 @@
       __globe_mpga_to_from(gdGACWRALLOC,dGACWRALLOC)
       __globe_mpga_to_from(gdGACSALLOC,dGACSALLOC)
 
-!     ------------------------------------------------------------------
-!     * calculate grid-averaged biomass and water fields
-!     ------------------------------------------------------------------
-
-      zCVEG(:) = SUM(dRAbd(:,:) * (rCA(:,:) + rCWL(:,:) + rCWR(:,:) + rCL(:,:) + rCR(:,:)), DIM=2)
-      zW(:)    = SUM(dRAbd(:,:) * rW(:,:),   DIM=2)
-      zCA(:)   = SUM(dRAbd(:,:) * rCA(:,:),  DIM=2)
-      zCL(:)   = SUM(dRAbd(:,:) * rCL(:,:),  DIM=2)
-      zCR(:)   = SUM(dRAbd(:,:) * rCR(:,:),  DIM=2)
-      zCWL(:)  = SUM(dRAbd(:,:) * rCWL(:,:), DIM=2)
-      zCWR(:)  = SUM(dRAbd(:,:) * rCWR(:,:), DIM=2)
 
 !     * calculate grid-summed seed carbon
       zCS(:)   = zCS(:) + SUM(rCS(:,:), DIM=2)
@@ -385,11 +384,10 @@
 
       case(1)
         do iSPP = FirstSPP, kMaxSPP
-          where (rCTot(:,iSPP) .gt. pA0)
+          where (rCtot(:,iSPP) .gt. pA0)
             zSuccess(:) = zSuccess(:) + 1.0
             zShannon(:) = zShannon(:) - dRAbd(:,iSPP) * log(dRAbd(:,iSPP))
           end where
-          zArea(:) = SUM(dRAbd(:,FirstSPP:kMaxSPP), dim=2)
         enddo
 
       case(2)
@@ -439,11 +437,19 @@
 !     ------------------------------------------------------------------
 
         if (nAccuCount .gt. 0) then
+          gdGARAbd(:)    = gdGARAbd(:) / REAL(nAccuCount)
           gdGAGPP(:)     = gdGAGPP(:)  / REAL(nAccuCount)
           gdGANPP(:)     = gdGANPP(:)  / REAL(nAccuCount)
           gdGARES(:)     = gdGARES(:)  / REAL(nAccuCount)
           gdGARESH(:)    = gdGARESH(:) / REAL(nAccuCount)
           gdGALIT(:)     = gdGALIT(:)  / REAL(nAccuCount)
+
+          gdGACR(:)     = gdGACR(:)  / REAL(nAccuCount)
+          gdGACA(:)     = gdGACA(:)  / REAL(nAccuCount)
+          gdGACL(:)     = gdGACL(:)  / REAL(nAccuCount)
+          gdGACWL(:)    = gdGACWL(:)  / REAL(nAccuCount)
+          gdGACWR(:)    = gdGACWR(:)  / REAL(nAccuCount)
+          gdGACVEG(:)    = gdGACVEG(:)  / REAL(nAccuCount)
 
           gdGALOSS_LIT_CS(:)    = gdGALOSS_LIT_CS(:)    / REAL(nAccuCount)
           gdGALOSS_LIT_CL(:)    = gdGALOSS_LIT_CL(:)    / REAL(nAccuCount)
@@ -490,6 +496,7 @@
           gdGASpec(:)    = gdGASpec(:) / REAL(nAccuCount)
           gdGAMig(:)     = gdGAMig(:)  / REAL(nAccuCount)
           gdGAExt(:)     = gdGAExt(:)  / REAL(nAccuCount)
+
         endif
 
 !       ----------------------------------------------------------------
@@ -501,43 +508,6 @@
         gdGARESE(:)    = gdGARESH(:) + gdGARES(:) ! ecosystem respiration
         gdGALH(:)      = gdGAET(:) * cLambda      ! latent heat
         gdGASH(:)      = gdGAFT(:) - gdGALH(:)    ! sensible heat
-
-        ! gdGAGPP(:)     = gdGAGPP(:)  / 86400.0    ! gC m-2 s-1
-        ! gdGARES(:)     = gdGARES(:)  / 86400.0    ! gC m-2 s-1
-        ! gdGANPP(:)     = gdGANPP(:)  / 86400.0
-        ! gdGARESH(:)    = gdGARESH(:) / 86400.0
-        ! gdGARESE(:)    = gdGARESE(:) / 86400.0
-        !
-        ! gdGALOSS_LIT_CS(:)    = gdGALOSS_LIT_CS(:)    / 86400.0
-        ! gdGALOSS_LIT_CL(:)    = gdGALOSS_LIT_CL(:)    / 86400.0
-        ! gdGALOSS_LIT_CR(:)    = gdGALOSS_LIT_CR(:)    / 86400.0
-        ! gdGALOSS_LIT_CWL(:)   = gdGALOSS_LIT_CWL(:)   / 86400.0
-        ! gdGALOSS_LIT_CWR(:)   = gdGALOSS_LIT_CWR(:)   / 86400.0
-        ! gdGALOSS_LIT_CSLOW(:) = gdGALOSS_LIT_CSLOW(:) / 86400.0
-        !
-        ! gdGANEE(:)     = gdGANEE(:)  / 86400.0
-        !
-        ! gdGACALOSS(:)  = gdGACALOSS(:)  / 86400.0
-        ! gdGACLLOSS(:)  = gdGACLLOSS(:)  / 86400.0
-        ! gdGACRLOSS(:)  = gdGACRLOSS(:)  / 86400.0
-        ! gdGACWLLOSS(:) = gdGACWLLOSS(:) / 86400.0
-        ! gdGACWRLOSS(:) = gdGACWRLOSS(:) / 86400.0
-        !
-        ! gdGACLALLOC(:)  = gdGACLALLOC(:)  / 86400.0
-        ! gdGACRALLOC(:)  = gdGACRALLOC(:)  / 86400.0
-        ! gdGACWLALLOC(:) = gdGACWLALLOC(:) / 86400.0
-        ! gdGACWRALLOC(:) = gdGACWRALLOC(:) / 86400.0
-        ! gdGACSALLOC(:)  = gdGACSALLOC(:)  / 86400.0
-        !
-        ! gdGAFH2O(:)    = gdGAFH2O(:) / 86400.0
-        !
-        !
-        ! gdGAET(:)      = gdGAET(:)   / 86400.0
-        ! gdGAESOIL(:)      = gdGAESOIL(:)   / 86400.0
-        ! gdGALEVAP(:)      = gdGALEVAP(:)   / 86400.0
-        ! gdGAQSURF(:)      = gdGAQSURF(:)   / 86400.0
-        ! gdGATRANS(:)      = gdGATRANS(:)   / 86400.0
-        ! gdGAQTOT(:)      = gdGAQTOT(:)   / 86400.0
 
 !       ----------------------------------------------------------------
 !       * output fields
@@ -619,16 +589,16 @@
 
       __globe_writeoutput(kFile_Grid,zW,      5140)
       __globe_writeoutput(kFile_Grid,zCS,     5372)
-      __globe_writeoutput(kFile_Grid,zCA,     5373)
-      __globe_writeoutput(kFile_Grid,zCL,     5374)
-      __globe_writeoutput(kFile_Grid,zCR,     5375)
-      __globe_writeoutput(kFile_Grid,zCWL,    5376)
-      __globe_writeoutput(kFile_Grid,zCWR,    5377)
-      __globe_writeoutput(kFile_Grid,BM_total,kcode_5304)
+      __globe_writeoutput(kFile_Grid,gdGACA,     5373)
+      __globe_writeoutput(kFile_Grid,gdGACL,     5374)
+      __globe_writeoutput(kFile_Grid,gdGACR,     5375)
+      __globe_writeoutput(kFile_Grid,gdGACWL,    5376)
+      __globe_writeoutput(kFile_Grid,gdGACWR,    5377)
+      __globe_writeoutput(kFile_Grid,gdGACVEG,kcode_5304)
       __globe_writeoutput(kFile_Grid,Richness,kcode_5370)
 
       if (kPop_dyn .ge. 1) then
-        __globe_writeoutput(kFile_Grid,zArea,5400)
+        __globe_writeoutput(kFile_Grid,gdGARAbd,5400)
       endif
 
       if (kPop_dyn .eq. 2) then
