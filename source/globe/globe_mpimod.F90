@@ -4,7 +4,6 @@
 !> \file globe_mpimod.F90
 !> \brief MPI routines for parallelization
 
-!> \file globe_mpimod.F90
 !> This file includes all routines which deal with MPI to perform
 !! the inter-process data exchange, the distribution of read data, and
 !! the collection of data for output.
@@ -553,6 +552,7 @@ __vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv()
       integer   :: nlon, nlat, level, nlevels, onelevel
       integer*8 :: rec_8
       real*4    :: r_4
+      integer td_tmp
 
 !     * number of levels in the data field
       nlevels = nall / ndata
@@ -581,16 +581,16 @@ __vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv()
 
 !       * fill global field with different kind of input data
 
-        if (ndata .eq. nglobe_gpts2) then
+        if (ndata .eq. nglobe_nlon*nglobe_nlat) then
+          if (kglobe_mypid == kglobe_kroot) globe_tmp_lonlat(:) = data(:,level)
+        elseif (ndata .eq. nglobe_gpts2) then
           if (kglobe_mypid == kglobe_kroot) globe_tmp_nGPts2(:) = data(:,level)
         elseif (ndata .eq. nglobe_landpts) then
           if (kglobe_mypid == kglobe_kroot) globe_tmp_nGPts2(1:nglobe_landpts) = data(:,level)
 #ifdef __MPI
         elseif (ndata .eq. nglobe_cgpt) then
-          __globe_mpga_to_from(globe_tmp_nGPts2,data(:,level))
+             __globe_mpga_to_from(globe_tmp_nGPts2,data(:,level))
 #endif /* __MPI */
-        elseif (ndata .eq. nglobe_nlon*nglobe_nlat) then
-          if (kglobe_mypid == kglobe_kroot) globe_tmp_lonlat(:) = data(:,level)
         else
           if (kglobe_mypid == kglobe_kroot) then
             write(*,*) "ERROR: globe_mpwritearray: code ",code,": Wrong array size"
@@ -599,7 +599,6 @@ __vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv()
         endif
 
 !       * fill up the whole map
-
         if (kglobe_mypid == kglobe_kroot) then
           if (ndata .ne. nglobe_nlon*nglobe_nlat) then
             globe_tmp_lonlat(:) = 0.0
@@ -608,7 +607,6 @@ __vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv()
         endif
 
 !       * write the data to the output file
-
         if (kglobe_mypid == kglobe_kroot) then
           if (kglobe_netcdf == 0) then
             if (kglobe_mapoutput == 0) then
