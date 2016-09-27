@@ -104,11 +104,19 @@
       __allocate(dGGermCnt,(NHOR))
       __allocate(dGDeadCnt,(NHOR))
 
+      __allocate(dGARAbd,(NHOR))
       __allocate(dGAGPP,(NHOR))
       __allocate(dGANPP,(NHOR))
       __allocate(dGARES,(NHOR))
       __allocate(dGARESH,(NHOR))
       __allocate(dGALIT,(NHOR))
+
+      __allocate(dGACA,(NHOR))
+      __allocate(dGACL,(NHOR))
+      __allocate(dGACR,(NHOR))
+      __allocate(dGACWL,(NHOR))
+      __allocate(dGACWR,(NHOR))
+      __allocate(dGACVEG,(NHOR))
 
       __allocate(dGALOSS_LIT_CS,(NHOR))
       __allocate(dGALOSS_LIT_CL,(NHOR))
@@ -160,6 +168,7 @@
       __allocate(dGAMig,(NHOR))
       __allocate(dGAExt,(NHOR))
 
+      __allocate(gdGARAbd,(gNHOR))
       __allocate(gdGAGPP,(gNHOR))
       __allocate(gdGANPP,(gNHOR))
       __allocate(gdGANEE,(gNHOR))
@@ -167,6 +176,14 @@
       __allocate(gdGARESH,(gNHOR))
       __allocate(gdGALIT,(gNHOR))
       __allocate(gdGARESE,(gNHOR))
+
+      __allocate(gdGACA,(gNHOR))
+      __allocate(gdGACL,(gNHOR))
+      __allocate(gdGACR,(gNHOR))
+      __allocate(gdGACWL,(gNHOR))
+      __allocate(gdGACWR,(gNHOR))
+
+      __allocate(gdGACVEG,(gNHOR))
 
       __allocate(gdGASOLRAD,(gNHOR))
       __allocate(gdGALH,(gNHOR))
@@ -231,6 +248,9 @@
       __allocate(gdSACWL,(gNHOR,kMaxSPP))
       __allocate(gdSACWR,(gNHOR,kMaxSPP))
 
+      __allocate(gdSACTOT,(gNHOR,kMaxSPP))
+      __allocate(gdSACVEG,(gNHOR,kMaxSPP))
+
       __allocate(gdSAtau,(gNHOR,kMaxSPP))
       __allocate(gdSAtauM,(gNHOR,kMaxSPP))
       __allocate(gdSACol,(gNHOR,kMaxSPP))
@@ -247,6 +267,9 @@
       __allocate(dSACR,(NHOR,kMaxSPP))
       __allocate(dSACWL,(NHOR,kMaxSPP))
       __allocate(dSACWR,(NHOR,kMaxSPP))
+
+      __allocate(dSACTOT,(NHOR,kMaxSPP))
+      __allocate(dSACVEG,(NHOR,kMaxSPP))
 
       __allocate(dSAtau,(NHOR,kMaxSPP))
       __allocate(dSAtauM,(NHOR,kMaxSPP))
@@ -333,23 +356,29 @@
       end subroutine jedi_output_stop
 
 !     ******************************************************************
-!     JEDI_OUTPUT_RESET
+!     JEDI_OUTPUT_RESET (reset monthly accumulations)
 !     ******************************************************************
 
       subroutine jedi_output_reset ()
       use jedi_mod
       use jedi_dyn_mod
       implicit none
-
       __diag(kFile_Diag,'jedi_output_reset: start')
 
 !     * reset accumulated variables
-
+      dGARAbd    = 0.0
       dGAGPP     = 0.0
       dGANPP     = 0.0
       dGARES     = 0.0
       dGARESH    = 0.0
       dGALIT     = 0.0
+
+      dGACA     = 0.0
+      dGACL     = 0.0
+      dGACR     = 0.0
+      dGACWL     = 0.0
+      dGACWR     = 0.0
+      dGACVEG    = 0.0
 
       dGALOSS_LIT_CS(:)    = 0.0
       dGALOSS_LIT_CL(:)    = 0.0
@@ -436,7 +465,10 @@
         gdSACWL(:,:)     = 0.0
         gdSACWR(:,:)     = 0.0
         gdSAtau(:,:)     = 0.0
-      endif
+        
+        gdSACVEG(:,:)    = 0.0
+        gdSACTOT(:,:)    = 0.0
+       endif
 
       dSARAbd(:,:)    = 0.0
       dSAGPP(:,:)     = 0.0
@@ -447,6 +479,9 @@
       dSACR(:,:)      = 0.0
       dSACWL(:,:)     = 0.0
       dSACWR(:,:)     = 0.0
+
+      dSACVEG(:,:)      = 0.0
+      dSACTOT(:,:)      = 0.0
 
       dSAtau(:,:)     = 0.0
 
@@ -550,7 +585,7 @@
         p06(iSPP) = p06(iSPP) / zA
         p07(iSPP) = p07(iSPP) / zA
         p08(iSPP) = p08(iSPP) / zA
-        p11(iSPP) = 1.0 / (365.0 * 80.0 * p11(iSPP))
+        p11(iSPP) = 1.0 / (80.0 * 365.0 * p11(iSPP))
         p12(iSPP) = 1.0 / (10.0**(1.48 * p12(iSPP) + 0.30) * (365.0/12.0))
         p13(iSPP) = 10.0**(4.0 * p13(iSPP) - 1.0)
         p15(iSPP) = 0.01 + pCN_Leaf * p15(iSPP)
