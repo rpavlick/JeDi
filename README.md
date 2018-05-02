@@ -1,10 +1,14 @@
 JeDi
 ====
 
+#### Cloning JeDi from GitHub
+
 To clone JeDi to your machine from GitHub:
 ```bash
 git clone https://github.com/rpavlick/JeDi.git
 ```
+
+#### Compiling JeDi
 
 To compile JeDi, use the ```makejedi``` script.
 ```bash
@@ -120,6 +124,64 @@ As you can see in the output from ```makejedi``` above, the script has
 Notes about compiling with ```makejedi```
 * If your cluster doesn't use the `module` system or PBS queueing system, then you will need to modify `makejedi` and `runjedi` to suit those needs.
 * You will likely need to make modifications to `makejedi` due the specifics of your compiler and the specific modules used on your cluster. 
+
+#### Running JeDi
+To run JeDi, use the ```runjedi``` script:
+
+```bash
+> ./runjedi --help
+
+Usage: ./runjedi <configuration file> [ parameter1=value parameter2=value ... ]
+
+runjedi version:heads/master-0-g79705a1-dirty
+Copyright © 2014-2015 Ryan Pavlick
+This is free software and comes with ABSOLUTELY NO WARRANTY
+For more information, see: https://github.com/rpavlick/JeDi
+```
+
+```runjedi``` requires a configuration file. Below is an example configuration file ```testrun.cfg``` that is included in the JeDi git repository.
+
+```bash
+> cat testrun.cfg
+
+    # experiment name
+    EXP=testrun
+    RUN=1
+
+    ### restart setting
+    RESTART=0
+    ### directory containing restart files
+    RESTART_DIR=
+
+    ### location of model executable
+    BUILD=""
+
+    BASE_DIR=$PWD
+    ### daily meteorological forcing directory
+    FORCING_DIR="/home/rpavlick/nobackup0/FORCING/ISIMIP/0.5degree_amazon/HadGEM2-ES/spinup"
+
+    ### namelist directory
+    NAMELIST_DIR="${BASE_DIR}/data/testrun"
+
+    ### directory containing surface description files
+    SURFACE_DIR="${BASE_DIR}/data/0.5degree/amazon"
+
+    ### directory containing species parameter file
+    SPECPARM_FILE="${BASE_DIR}/data/testrun/jedi_specparms.txt"
+
+    ### atmospheric CO2 file
+    PCO2_FILE=""
+
+    ### jedi parameter table file
+    PARTAB_FILE="${BASE_DIR}/data/jedi_partab"
+
+    ### pbs cluster options
+    NODES=1
+    NCPUS=12
+    QUEUE=mediumq
+    WALLTIME=12:00:00
+```
+
 
 Input files
 
