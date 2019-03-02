@@ -1,4 +1,5 @@
-JeDi
+# Jena Diversity - Dynamic Global Vegetation Model (JeDi-DGVM)
+
 ====
 
 #### Cloning JeDi from GitHub
